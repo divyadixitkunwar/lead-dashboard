@@ -72,8 +72,7 @@ export default function LeadDetailPage() {
         if (!noteContent.trim()) return;
         setSubmitting(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user'));
-            await api.post(`/leads/${id}/notes`, { content: noteContent, written_by: user.id });
+            await api.post(`/leads/${id}/notes`, { content: noteContent });
             setNoteContent('');
             fetchLead();
         } catch (err) { console.error(err); }
@@ -114,7 +113,7 @@ export default function LeadDetailPage() {
 
                 {/* Back */}
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/app')}
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: '7px',
                         background: 'none', border: 'none', fontSize: '14px',

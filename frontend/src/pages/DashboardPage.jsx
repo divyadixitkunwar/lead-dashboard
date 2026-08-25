@@ -215,7 +215,7 @@ export default function DashboardPage() {
                         return (
                             <div
                                 key={lead.id}
-                                onClick={() => navigate(`/leads/${lead.id}`)}
+                                onClick={() => navigate(`/app/leads/${lead.id}`)}
                                 style={{
                                     display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
                                     padding: '16px 24px', cursor: 'pointer', alignItems: 'center',

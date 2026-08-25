@@ -21,7 +21,7 @@ export default function Sidebar({ children }) {
 
     const navItems = [
         {
-            path: '/', label: 'Leads', icon: (
+            path: '/app', label: 'Leads', icon: (
                 <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
                     <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.8" />
                     <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.4" />
@@ -31,7 +31,7 @@ export default function Sidebar({ children }) {
             )
         },
         {
-            path: '/users', label: 'Users', icon: (
+            path: '/app/users', label: 'Users', icon: (
                 <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
                     <circle cx="8" cy="5" r="3" fill="currentColor" opacity="0.8" />
                     <path d="M2 13c0-2.761 2.686-5 6-5s6 2.239 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />

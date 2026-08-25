@@ -21,7 +21,7 @@ export default function LoginPage() {
         try {
             const res = await api.post('/auth/login', { email, password });
             login(res.data.token, res.data.user);
-            navigate('/');
+            navigate('/app');
         } catch (err) {
             setError(err.response?.data?.error || 'Invalid email or password');
         } finally {
