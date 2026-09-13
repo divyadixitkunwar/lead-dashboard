@@ -19,7 +19,7 @@ const INTENT = {
 
 const CHANNEL_ICON = { whatsapp: '💬', messenger: '💙', instagram: '🌸' };
 
-const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif";
+const font = "'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
 
 const Badge = ({ color, bg, label }) => (
     <span style={{

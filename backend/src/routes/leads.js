@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prismaClient');
-const { protect } = require('../middleware/auth');
+const { protect, requireActive, requireChannel } = require('../middleware/auth');
 
-router.get('/', protect, async (req, res) => {
+// Every route below needs a real, currently-active account with at least
+// one connected channel — not just a valid token. (Verify-email now issues
+// tokens to pending_approval users too, so `protect` alone no longer
+// implies "approved," and "approved" alone no longer implies "has
+// something to show.")
+router.use(protect, requireActive, requireChannel);
+
+router.get('/', async (req, res) => {
     try {
         const { status, channel, intent, message_type } = req.query;
         const filters = { business_id: req.user.business_id };
@@ -19,7 +26,7 @@ router.get('/', protect, async (req, res) => {
     }
 });
 
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const lead = await prisma.leads.findFirst({
             where: { id: parseInt(req.params.id), business_id: req.user.business_id },
@@ -32,7 +39,7 @@ router.get('/:id', protect, async (req, res) => {
     }
 });
 
-router.post('/', protect, async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { contact_name, phone, channel, message_type, intent, platform_thread_id } = req.body;
         const lead = await prisma.leads.create({
@@ -44,7 +51,7 @@ router.post('/', protect, async (req, res) => {
     }
 });
 
-router.patch('/:id', protect, async (req, res) => {
+router.patch('/:id', async (req, res) => {
     try {
         const existing = await prisma.leads.findFirst({
             where: { id: parseInt(req.params.id), business_id: req.user.business_id }
@@ -67,7 +74,7 @@ router.patch('/:id', protect, async (req, res) => {
     }
 });
 
-router.post('/:id/notes', protect, async (req, res) => {
+router.post('/:id/notes', async (req, res) => {
     try {
         const lead = await prisma.leads.findFirst({
             where: { id: parseInt(req.params.id), business_id: req.user.business_id }
@@ -84,7 +91,7 @@ router.post('/:id/notes', protect, async (req, res) => {
     }
 });
 
-router.get('/:id/notes', protect, async (req, res) => {
+router.get('/:id/notes', async (req, res) => {
     try {
         const lead = await prisma.leads.findFirst({
             where: { id: parseInt(req.params.id), business_id: req.user.business_id }

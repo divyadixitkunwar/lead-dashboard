@@ -25,10 +25,10 @@ model businesses {
 model business_channels {
   id           Int      @id @default(autoincrement())
   business_id  Int
-  platform     String   @db.VarChar(20) // 'whatsapp' | 'messenger' | 'instagram'
-  external_id  String   @db.VarChar(60) // phone_number_id / page_id / ig_business_id
+  platform     String   @db.VarChar(20)
+  external_id  String   @db.VarChar(60)
   display_name String?  @db.VarChar(150)
-  access_token String?  @db.Text // permanent token for this channel (shared WABA token for whatsapp rows, per-Page/IG token for messenger/instagram rows)
+  access_token String?  @db.Text
   created_at   DateTime @default(now()) @db.Timestamp(6)
 
   businesses businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -78,18 +78,39 @@ model notes {
 }
 
 model users {
-  id            Int      @id @default(autoincrement())
-  business_id   Int
-  name          String   @db.VarChar(100)
-  email         String   @unique @db.VarChar(150)
-  password_hash String   @db.VarChar(255)
-  role          String   @default("staff") @db.VarChar(20)
-  created_at    DateTime @default(now()) @db.Timestamp(6)
-  businesses    businesses @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  leads         leads[]
-  notes         notes[]
+  id                Int           @id @default(autoincrement())
+  business_id       Int
+  name              String        @db.VarChar(100)
+  email             String        @unique @db.VarChar(150)
+  password_hash     String?       @db.VarChar(255)
+  role              String        @default("staff") @db.VarChar(20)
+  email_verified_at DateTime?     @db.Timestamp(6)
+  status            String        @default("active") @db.VarChar(20)
+  // NEW — collected once at signup so the owner has something to search by
+  // when adding this business as a Tester on the Meta app after approval.
+  // Nullable so it doesn't break any existing row; new signups require it
+  // at the application layer (see routes/auth.js), not the database layer.
+  facebook_contact  String?       @db.VarChar(255)
+  created_at        DateTime      @default(now()) @db.Timestamp(6)
+  businesses        businesses    @relation(fields: [business_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  leads             leads[]
+  notes             notes[]
+  auth_tokens       auth_tokens[]
 
   @@index([business_id])
+}
+
+model auth_tokens {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  type       String    @db.VarChar(20)
+  token_hash String    @db.VarChar(255)
+  expires_at DateTime  @db.Timestamp(6)
+  used_at    DateTime? @db.Timestamp(6)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
 }
 
 model ingest_logs {

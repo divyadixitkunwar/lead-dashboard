@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 
-const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif";
+const font = "'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
 
 const STATUS = {
     new: { color: '#0071E3', bg: 'rgba(0,113,227,0.1)' },

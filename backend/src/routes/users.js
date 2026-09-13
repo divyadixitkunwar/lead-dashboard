@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const prisma = require('../prismaClient');
-const { protect, adminOnly } = require('../middleware/auth');
+const { protect, adminOnly, requireActive, requireChannel } = require('../middleware/auth');
 
-router.get('/', protect, adminOnly, async (req, res) => {
+// Same reasoning as leads.js — a valid token no longer implies "approved,"
+// and being approved no longer implies "has something to manage."
+router.use(protect, requireActive, requireChannel);
+
+router.get('/', adminOnly, async (req, res) => {
     try {
         const users = await prisma.users.findMany({
             where: { business_id: req.user.business_id },
@@ -16,7 +20,7 @@ router.get('/', protect, adminOnly, async (req, res) => {
     }
 });
 
-router.post('/', protect, adminOnly, async (req, res) => {
+router.post('/', adminOnly, async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
         const password_hash = await bcrypt.hash(password, 12);
@@ -30,7 +34,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
     }
 });
 
-router.patch('/:id', protect, adminOnly, async (req, res) => {
+router.patch('/:id', adminOnly, async (req, res) => {
     try {
         const { name, email, role } = req.body;
         const target = await prisma.users.findUnique({ where: { id: parseInt(req.params.id) } });
@@ -44,7 +48,7 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
     }
 });
 
-router.delete('/:id', protect, adminOnly, async (req, res) => {
+router.delete('/:id', adminOnly, async (req, res) => {
     try {
         const target = await prisma.users.findUnique({ where: { id: parseInt(req.params.id) } });
         if (!target || target.business_id !== req.user.business_id) {

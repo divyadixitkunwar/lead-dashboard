@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 
-const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif";
+const font = "'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
 
 const MetaItem = ({ label, value }) => (
     <div>

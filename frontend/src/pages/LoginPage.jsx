@@ -1,156 +1,204 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { tokens } from './Header';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import heroImage from '../assets/hero-himalaya.jpg';
 
-const font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif";
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+function Field({ id, label, type = 'text', value, onChange, autoComplete, trailing }) {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                <label htmlFor={id} style={{ fontSize: '13px', fontWeight: 500, color: tokens.inkMuted }}>
+                    {label}
+                </label>
+                {trailing}
+            </div>
+            <input
+                id={id}
+                type={type}
+                required
+                value={value}
+                onChange={onChange}
+                autoComplete={autoComplete}
+                style={{
+                    fontFamily: tokens.font,
+                    fontSize: '15px',
+                    color: tokens.ink,
+                    background: 'rgba(255,255,255,0.6)',
+                    border: '1px solid rgba(27,23,18,0.15)',
+                    borderRadius: '10px',
+                    padding: '11px 14px',
+                    outline: 'none',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = 'rgba(27,23,18,0.35)')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(27,23,18,0.15)')}
+            />
+        </div>
+    );
+}
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [focusedField, setFocusedField] = useState(null);
-    const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useAuth();
+    const [form, setForm] = useState({ email: '', password: '' });
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [notice] = useState(location.state?.passwordReset ? 'Password updated. Log in below.' : '');
+
+    const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
+        setSubmitting(true);
+
         try {
-            const res = await api.post('/auth/login', { email, password });
-            login(res.data.token, res.data.user);
-            navigate('/app');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Invalid email or password');
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                // Account exists but hasn't verified their email yet — send them
+                // back into the verify step instead of just showing an error.
+                if (data.code === 'EMAIL_NOT_VERIFIED') {
+                    navigate('/signup/verify', { state: { email: form.email } });
+                    return;
+                }
+                // Rejected applications never get a token — just an inline error.
+                if (data.code === 'APPLICATION_REJECTED') {
+                    setError(data.error);
+                    return;
+                }
+                setError(data.error || 'Something went wrong. Try again.');
+                return;
+            }
+
+            login(data.token, data.user);
+            // Route by the account's actual current status instead of always
+            // assuming /app — a business still waiting on approval logs in
+            // straight into the same waiting page every time, no re-signup,
+            // no re-verification.
+            navigate(data.user.status === 'pending_approval' ? '/application-pending' : '/app');
+        } catch {
+            setError('Network error. Try again.');
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const inputStyle = (field) => ({
-        width: '100%', boxSizing: 'border-box',
-        background: '#F5F5F7', fontFamily: font,
-        border: `1px solid ${focusedField === field ? '#0071E3' : 'transparent'}`,
-        borderRadius: '12px', padding: '13px 16px',
-        fontSize: '15px', color: '#1D1D1F', outline: 'none',
-        boxShadow: focusedField === field ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
-        transition: 'all 0.15s',
-    });
-
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: '#F5F5F7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: font,
-            padding: '24px',
-        }}>
-            <div style={{
-                background: '#fff',
-                borderRadius: '24px',
-                padding: '52px',
-                width: '100%',
-                maxWidth: '440px',
-                boxShadow: '0 4px 32px rgba(0,0,0,0.07), 0 0 1px rgba(0,0,0,0.08)',
-            }}>
+        <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: tokens.font }}>
+            <div
+                aria-hidden="true"
+                style={{
+                    position: 'fixed', inset: 0, zIndex: 0,
+                    backgroundImage: `url(${heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center',
+                    filter: 'blur(40px)', transform: 'scale(1.1)',
+                }}
+            />
+            <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 1, background: 'rgba(246,241,231,0.6)' }} />
 
-                {/* Logo */}
-                <div style={{
-                    width: '52px', height: '52px',
-                    background: 'linear-gradient(135deg, #1D1D1F 0%, #3A3A3C 100%)',
-                    borderRadius: '16px',
-                    marginBottom: '36px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                    <div style={{ width: '20px', height: '20px', background: '#fff', borderRadius: '50%', opacity: 0.9 }} />
-                </div>
-
-                {/* Heading */}
-                <div style={{ fontSize: '30px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.02em', marginBottom: '6px', lineHeight: '1.2' }}>
-                    Sign in
-                </div>
-                <div style={{ fontSize: '15px', color: '#6E6E73', marginBottom: '40px' }}>
-                    Welcome back to Lead Dashboard
-                </div>
-
-                {/* Error */}
-                {error && (
-                    <div style={{
-                        background: 'rgba(255,59,48,0.06)', border: '1px solid rgba(255,59,48,0.15)',
-                        borderRadius: '12px', padding: '13px 16px', marginBottom: '24px',
-                        fontSize: '14px', color: '#FF3B30',
-                        display: 'flex', alignItems: 'center', gap: '9px',
-                    }}>
-                        <span>⚠</span> {error}
+            <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+                <form
+                    onSubmit={handleSubmit}
+                    style={{
+                        width: 'min(520px, 100%)',
+                        background: tokens.ivory,
+                        borderRadius: '16px',
+                        padding: '40px 44px 32px',
+                        boxShadow: '0 20px 60px rgba(27,23,18,0.12)',
+                        border: '1px solid rgba(27,23,18,0.06)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '22px',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '7px', background: tokens.ink, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '7px', height: '7px', background: tokens.ivory, borderRadius: '50%' }} />
+                        </div>
+                        <span style={{ fontSize: '19px', fontWeight: 700, letterSpacing: '-0.02em', color: tokens.ink }}>Ekikrit</span>
                     </div>
-                )}
 
-                <form onSubmit={handleSubmit}>
-                    {/* Email */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#1D1D1F', marginBottom: '8px' }}>
-                            Email
-                        </label>
-                        <input
+                    <h1 style={{ margin: 0, textAlign: 'center', fontFamily: tokens.display, fontSize: '32px', fontWeight: 500, letterSpacing: '-0.03em', color: tokens.ink }}>
+                        Welcome back
+                    </h1>
+
+                    {notice && (
+                        <span style={{ fontSize: '13px', color: tokens.inkMuted, textAlign: 'center' }}>{notice}</span>
+                    )}
+
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <Field
+                            id="email"
+                            label="Email"
                             type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            onFocus={() => setFocusedField('email')}
-                            onBlur={() => setFocusedField(null)}
-                            style={inputStyle('email')}
-                            placeholder="you@company.com"
-                            required
+                            value={form.email}
+                            onChange={set('email')}
+                            autoComplete="email"
                         />
-                    </div>
 
-                    {/* Password */}
-                    <div style={{ marginBottom: '28px' }}>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#1D1D1F', marginBottom: '8px' }}>
-                            Password
-                        </label>
-                        <input
+                        <Field
+                            id="password"
+                            label="Password"
                             type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            onFocus={() => setFocusedField('password')}
-                            onBlur={() => setFocusedField(null)}
-                            style={inputStyle('password')}
-                            placeholder="••••••••"
-                            required
+                            value={form.password}
+                            onChange={set('password')}
+                            autoComplete="current-password"
+                            trailing={
+                                <a
+                                    onClick={() => navigate('/forgot-password')}
+                                    style={{ fontSize: '13px', color: tokens.inkMuted, textDecoration: 'underline', cursor: 'pointer' }}
+                                >
+                                    Forgot password?
+                                </a>
+                            }
                         />
                     </div>
 
-                    {/* Submit */}
+                    {error && (
+                        <span style={{ fontSize: '13px', color: '#B3261E', alignSelf: 'flex-start' }}>
+                            {error}
+                        </span>
+                    )}
+
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={submitting}
                         style={{
                             width: '100%',
-                            background: loading ? '#6E6E73' : '#0071E3',
-                            color: '#fff',
+                            background: tokens.ink,
+                            color: tokens.ivory,
                             border: 'none',
-                            borderRadius: '12px',
-                            padding: '14px',
+                            borderRadius: '999px',
+                            padding: '13px',
+                            fontFamily: tokens.font,
                             fontSize: '15px',
-                            fontWeight: '500',
-                            cursor: loading ? 'default' : 'pointer',
-                            fontFamily: font,
-                            opacity: loading ? 0.7 : 1,
-                            transition: 'background 0.15s, opacity 0.15s',
-                            letterSpacing: '-0.01em',
+                            fontWeight: 600,
+                            cursor: submitting ? 'default' : 'pointer',
+                            opacity: submitting ? 0.7 : 1,
                         }}
                     >
-                        {loading ? 'Signing in...' : 'Sign in'}
+                        {submitting ? 'Logging in…' : 'Log in'}
                     </button>
-                </form>
 
-                <div style={{ textAlign: 'center', fontSize: '13px', color: '#AEAEB2', marginTop: '36px' }}>
-                    Lead Management System · Secure Access
-                </div>
+                    <p style={{ margin: 0, fontSize: '14px', color: tokens.inkMuted }}>
+                        Don't have an account?{' '}
+                        <a
+                            onClick={() => navigate('/signup')}
+                            style={{ color: tokens.ink, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                            Sign up
+                        </a>
+                    </p>
+                </form>
             </div>
         </div>
     );

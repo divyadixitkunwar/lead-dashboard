@@ -12,10 +12,12 @@ router.get('/', (req, res) => {
     const challenge = req.query['hub.challenge'];
 
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-        console.log('Webhook verified');
         return res.status(200).send(challenge);
     }
-    console.log('Webhook verification failed', { mode, token });
+    // Deliberately not logging the attempted token here — it's Meta's
+    // configured secret, and a failed-verification log is a place someone
+    // debugging later might paste into a chat/issue without thinking about it.
+    console.log('Webhook verification failed', { mode });
     return res.sendStatus(403);
 });
 
@@ -103,7 +105,6 @@ async function handleWhatsApp(payload) {
                 for (const msg of value.messages) {
                     const phone = msg.from;
                     const message = msg.type === 'text' ? msg.text?.body : `[Unsupported type: ${msg.type}]`;
-                    console.log(`[whatsapp] ${names[phone] || phone}: ${message}`);
                     await saveInboundMessage({
                         business_id: channel.business_id,
                         platform: 'whatsapp',
@@ -116,9 +117,10 @@ async function handleWhatsApp(payload) {
             }
 
             if (Array.isArray(value.statuses)) {
-                for (const s of value.statuses) {
-                    console.log(`[whatsapp] status: ${s.id} -> ${s.status}`);
-                }
+                // Delivery/read receipts arrive here too — nothing currently
+                // uses them, intentionally not logged per-message to avoid
+                // flooding logs at real volume. Revisit if delivery status
+                // ever needs to show up in the UI.
             }
         }
     }
@@ -140,7 +142,6 @@ async function handleMessenger(payload) {
 
             const psid = event.sender?.id;
             const message = event.message.text || '[Non-text message]';
-            console.log(`[messenger] ${psid}: ${message}`);
 
             const name = await fetchProfileName(psid, channel.access_token, 'name');
 
@@ -172,7 +173,6 @@ async function handleInstagram(payload) {
 
             const igsid = event.sender?.id;
             const message = event.message.text || '[Non-text message]';
-            console.log(`[instagram] ${igsid}: ${message}`);
 
             const name = await fetchProfileName(igsid, channel.access_token, 'name,username');
 
@@ -191,7 +191,6 @@ async function handleInstagram(payload) {
 // ---- POST entrypoint: route by payload.object ----
 router.post('/', async (req, res) => {
     const payload = req.body;
-    console.log('--- RAW PAYLOAD ---', JSON.stringify(payload));
 
     try {
         if (payload.object === 'whatsapp_business_account') {
