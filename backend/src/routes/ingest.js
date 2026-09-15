@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const prisma = require('../prismaClient');
 const { tagIntent } = require('../services/intentTagger');
@@ -281,7 +282,31 @@ async function handleInstagram(payload) {
     }
 }
 
+function isValidMetaSignature(req) {
+    const appSecret = process.env.META_APP_SECRET;
+    if (!appSecret) return false;
+
+    const signatureHeader = req.get('x-hub-signature-256');
+    if (!signatureHeader || !signatureHeader.startsWith('sha256=')) return false;
+    if (!req.rawBody) return false;
+
+    const expected = crypto
+        .createHmac('sha256', appSecret)
+        .update(req.rawBody)
+        .digest('hex');
+    const provided = signatureHeader.slice('sha256='.length);
+
+    const expectedBuf = Buffer.from(expected, 'hex');
+    const providedBuf = Buffer.from(provided, 'hex');
+    if (expectedBuf.length !== providedBuf.length) return false;
+    return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
+
 router.post('/', async (req, res) => {
+    if (!isValidMetaSignature(req)) {
+        return res.status(401).json({ error: 'Invalid or missing webhook signature.' });
+    }
+
     const payload = req.body;
 
     try {

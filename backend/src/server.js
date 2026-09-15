@@ -14,7 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+    // Capture the raw request bytes so /ingest can verify Meta's
+    // X-Hub-Signature-256 HMAC, which requires the exact bytes as sent
+    // (a re-serialized JSON body would not match the signature).
+    verify: (req, res, buf) => { req.rawBody = buf; },
+}));
 
 app.get('/', (req, res) => {
     res.json({ message: 'Ekikrit API is running' });

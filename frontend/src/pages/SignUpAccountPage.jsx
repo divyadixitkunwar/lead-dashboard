@@ -6,7 +6,7 @@ import heroImage from '../assets/hero-himalaya.jpg';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-function Field({ id, label, type = 'text', value, onChange, autoComplete, helper }) {
+function Field({ id, label, type = 'text', value, onChange, autoComplete, helper, required = true }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label htmlFor={id} style={{ fontSize: '13px', fontWeight: 500, color: tokens.inkMuted }}>
@@ -15,7 +15,7 @@ function Field({ id, label, type = 'text', value, onChange, autoComplete, helper
             <input
                 id={id}
                 type={type}
-                required
+                required={required}
                 value={value}
                 onChange={onChange}
                 autoComplete={autoComplete}
@@ -207,6 +207,7 @@ export default function SignupAccountPage() {
 
                         <Field
                             id="facebook_contact"
+                            required={false}
                             label="Your Facebook email or profile link"
                             value={form.facebook_contact}
                             onChange={set('facebook_contact')}

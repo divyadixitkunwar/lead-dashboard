@@ -218,9 +218,9 @@ export default function LeadDetailPage() {
                                         {lead.channel}
                                     </span>
                                     <span style={{ fontSize: '13px', color: '#6E6E73', background: '#F5F5F7', borderRadius: '7px', padding: '4px 10px', textTransform: 'capitalize' }}>
-                                        {lead.message_type.replace(/_/g, ' ')}
+                                        {(lead.message_type ?? '').replace(/_/g, ' ')}
                                     </span>
-                                    <Badge color={int.color} bg={int.bg} label={lead.intent.replace(/_/g, ' ')} />
+                                    <Badge color={int.color} bg={int.bg} label={(lead.intent ?? '').replace(/_/g, ' ')} />
                                 </div>
                             </div>
                         </div>
