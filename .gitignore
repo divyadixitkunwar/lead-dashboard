@@ -2,4 +2,4 @@
 .VSCodeCounter
 cloudflared.deb
 node_modules
-.env
+.env*.zip
