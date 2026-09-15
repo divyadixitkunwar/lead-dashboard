@@ -1,11 +1,9 @@
 const crypto = require('crypto');
 
-// 6-digit code for email verification
 function generateVerificationCode() {
     return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-// Never store the raw code — just its hash
 function hashValue(value) {
     return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -32,7 +30,6 @@ async function findValidToken(prisma, { type, rawValue }) {
     });
 }
 
-// Call before creating a new code so only the latest one is valid
 async function invalidateUserTokens(prisma, { user_id, type }) {
     await prisma.auth_tokens.updateMany({
         where: { user_id, type, used_at: null },
@@ -40,7 +37,6 @@ async function invalidateUserTokens(prisma, { user_id, type }) {
     });
 }
 
-// 60s cooldown between sends, 5/hour cap
 async function checkResendCooldown(prisma, user_id, type) {
     const last = await prisma.auth_tokens.findFirst({
         where: { user_id, type },

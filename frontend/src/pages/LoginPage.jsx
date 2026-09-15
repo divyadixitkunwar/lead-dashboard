@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
 import { useAuth } from '../context/AuthContext';
 import heroImage from '../assets/hero-himalaya.jpg';
 
@@ -64,13 +64,10 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                // Account exists but hasn't verified their email yet — send them
-                // back into the verify step instead of just showing an error.
                 if (data.code === 'EMAIL_NOT_VERIFIED') {
                     navigate('/signup/verify', { state: { email: form.email } });
                     return;
                 }
-                // Rejected applications never get a token — just an inline error.
                 if (data.code === 'APPLICATION_REJECTED') {
                     setError(data.error);
                     return;
@@ -80,10 +77,6 @@ export default function LoginPage() {
             }
 
             login(data.token, data.user);
-            // Route by the account's actual current status instead of always
-            // assuming /app — a business still waiting on approval logs in
-            // straight into the same waiting page every time, no re-signup,
-            // no re-verification.
             navigate(data.user.status === 'pending_approval' ? '/application-pending' : '/app');
         } catch {
             setError('Network error. Try again.');

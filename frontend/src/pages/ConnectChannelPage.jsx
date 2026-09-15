@@ -1,14 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
 import heroImage from '../assets/hero-himalaya.jpg';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-
-// WhatsApp isn't part of this batch — see the step 3 handoff doc for why
-// (it needs either Meta Business Verification or a paid BSP, neither of
-// which fits this project right now). Only Messenger + Instagram here,
-// both of which work today via the Tester-role trick.
 
 function MessengerLogo({ size = 22 }) {
     return (
@@ -34,16 +29,12 @@ const CHANNEL_META = {
     },
     instagram: {
         label: 'Instagram',
-        helper: 'Comes from the same Page — connects automatically if linked.',
+        helper: 'Comes from the same Page - connects automatically if linked.',
         Logo: InstagramLogo,
     },
 };
 const CHANNEL_ORDER = ['messenger', 'instagram'];
 
-// Loads the Facebook JS SDK exactly once, however many times this
-// function gets called (StrictMode double-renders, revisiting the page,
-// retrying after an error, etc.). Every caller gets the same promise, and
-// that promise doesn't resolve until FB.init() has actually run.
 let fbSdkPromise = null;
 function loadFacebookSdk(appId) {
     if (fbSdkPromise) return fbSdkPromise;
@@ -54,14 +45,14 @@ function loadFacebookSdk(appId) {
             resolve(window.FB);
         };
 
-        if (document.getElementById('facebook-jssdk')) return; // fbAsyncInit above still fires once it's done loading
+        if (document.getElementById('facebook-jssdk')) return;
 
         const script = document.createElement('script');
         script.id = 'facebook-jssdk';
         script.src = 'https://connect.facebook.net/en_US/sdk.js';
         script.async = true;
         script.defer = true;
-        script.onerror = () => reject(new Error('Could not load the Facebook SDK — check your connection and try again.'));
+        script.onerror = () => reject(new Error('Could not load the Facebook SDK  -  check your connection and try again.'));
         document.body.appendChild(script);
     });
 
@@ -83,9 +74,6 @@ function ChannelRow({ meta, statusValue, onConnect, onUnavailableAction }) {
         buttonLabel = 'Connecting…';
     } else if (isUnavailable) {
         if (onUnavailableAction) {
-            // Instagram's "not linked yet" state is actionable, not a dead
-            // end — this re-checks using the token already saved from
-            // Messenger, no full Facebook re-login needed.
             buttonLabel = 'Recheck';
             buttonHandler = onUnavailableAction;
             buttonDisabled = false;
@@ -127,7 +115,7 @@ function ChannelRow({ meta, statusValue, onConnect, onUnavailableAction }) {
                 <div style={{ fontSize: '15px', fontWeight: 600, color: tokens.ink }}>{meta.label}</div>
                 <div style={{ fontSize: '12.5px', color: tokens.inkMuted, marginTop: '2px' }}>
                     {isUnavailable
-                        ? 'No Instagram Business account is linked to your connected Page yet — link it in Facebook Page settings, then tap Recheck.'
+                        ? 'No Instagram Business account is linked to your connected Page yet  -  link it in Facebook Page settings, then tap Recheck.'
                         : meta.helper}
                 </div>
             </div>
@@ -161,16 +149,10 @@ export default function ConnectChannelPage() {
     const navigate = useNavigate();
     const { refreshUser } = useAuth();
 
-    // messenger/instagram: 'idle' | 'connecting' | 'connected' | 'unavailable'
-    // (instagram only ever hits 'unavailable' — it means "the Page you
-    // connected has no linked Instagram Business account", not an error)
     const [status, setStatus] = useState({ messenger: 'idle', instagram: 'idle' });
-    const [pickerPages, setPickerPages] = useState(null); // set when FB returns >1 Page to choose from
+    const [pickerPages, setPickerPages] = useState(null);
     const [error, setError] = useState('');
 
-    // On load (and on every revisit — this page isn't one-time), show
-    // whatever's actually connected already instead of always starting
-    // from a blank slate.
     useEffect(() => {
         let cancelled = false;
         api.get('/channels')
@@ -181,9 +163,12 @@ export default function ConnectChannelPage() {
                     if (ch.platform === 'messenger') next.messenger = 'connected';
                     if (ch.platform === 'instagram') next.instagram = 'connected';
                 }
+                if (next.messenger === 'connected' && next.instagram !== 'connected') {
+                    next.instagram = 'unavailable';
+                }
                 setStatus(next);
             })
-            .catch(() => { /* fine to just show idle if this one call fails */ });
+            .catch(() => {});
         return () => { cancelled = true; };
     }, []);
 
@@ -198,28 +183,13 @@ export default function ConnectChannelPage() {
                 instagram: res.data.instagram ? 'connected' : 'unavailable',
             }));
             setPickerPages(null);
-            const fresh = await refreshUser(); // flips hasChannel so the dashboard unlocks
-            // First successful connect — this is the moment the dashboard
-            // becomes reachable at all, so take them straight there instead
-            // of leaving them stranded on a page with nothing left to do.
-            // Small delay so "Connected ✓" is actually visible before the
-            // page changes out from under them. If Instagram wasn't linked,
-            // that's fine — this page stays reachable later to pick it up
-            // with Recheck, nothing forces them to do it right now.
-            if (fresh?.hasChannel) {
-                setTimeout(() => navigate('/app'), 700);
-            }
+            await refreshUser();
         } catch (err) {
             setError(err.response?.data?.error || 'Could not finish connecting that Page. Please try again.');
             setStatus((s) => ({ ...s, messenger: 'idle' }));
         }
     }, [refreshUser, navigate]);
 
-    // Re-checks Instagram using the Page token already saved from the
-    // Messenger connect above — no need to redo the Facebook popup login
-    // just to look again. Most small businesses never linked Instagram to
-    // their Page in the first place, so this is the expected path for
-    // picking it up once they have, not an error-recovery path.
     const handleRecheckInstagram = useCallback(async () => {
         setError('');
         setStatus((s) => ({ ...s, instagram: 'connecting' }));
@@ -262,14 +232,14 @@ export default function ConnectChannelPage() {
 
         FB.login(
             (response) => {
-                const code = response.authResponse?.code;
-                if (!code) {
+                const accessToken = response.authResponse?.accessToken;
+                if (!accessToken) {
                     setStatus((s) => ({ ...s, messenger: 'idle' }));
                     setError('Facebook login was cancelled or didn\u2019t complete.');
                     return;
                 }
 
-                api.post('/channels/facebook/callback', { code })
+                api.post('/channels/facebook/callback', { accessToken })
                     .then((res) => {
                         const pages = res.data.pages || [];
                         if (pages.length === 0) {
@@ -292,7 +262,7 @@ export default function ConnectChannelPage() {
                         setError(err.response?.data?.error || 'Could not read your Pages from Facebook.');
                     });
             },
-            { config_id: configId, response_type: 'code', override_default_response_type: true }
+            { scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement,business_management' }
         );
     }, [finishConnect]);
 
@@ -349,7 +319,7 @@ export default function ConnectChannelPage() {
                     </div>
 
                     <p style={{ margin: 0, fontSize: '12px', color: tokens.inkSoft, textAlign: 'center', lineHeight: 1.5 }}>
-                        Instagram doesn't have its own separate login anywhere — it only ever comes through
+                        Instagram doesn't have its own separate login anywhere  -  it only ever comes through
                         a linked Facebook Page. One Facebook login above covers both; if Instagram shows
                         "Not linked," it's almost always because the Page's Instagram link was never set up
                         on Facebook's side, not because anything here is broken.
@@ -377,7 +347,7 @@ export default function ConnectChannelPage() {
                                     }}
                                 >
                                     {page.name}
-                                    {page.instagram?.username ? ` — links to @${page.instagram.username}` : ''}
+                                    {page.instagram?.username ? `  -  links to @${page.instagram.username}` : ''}
                                 </button>
                             ))}
                         </div>

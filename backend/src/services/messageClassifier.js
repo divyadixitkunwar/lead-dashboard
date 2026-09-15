@@ -28,7 +28,6 @@ function classifyMessageType(text) {
         }
     }
 
-    // Default — most messages are customer leads
     return 'customer_lead';
 }
 

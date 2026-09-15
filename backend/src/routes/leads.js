@@ -3,11 +3,6 @@ const router = express.Router();
 const prisma = require('../prismaClient');
 const { protect, requireActive, requireChannel } = require('../middleware/auth');
 
-// Every route below needs a real, currently-active account with at least
-// one connected channel — not just a valid token. (Verify-email now issues
-// tokens to pending_approval users too, so `protect` alone no longer
-// implies "approved," and "approved" alone no longer implies "has
-// something to show.")
 router.use(protect, requireActive, requireChannel);
 
 router.get('/', async (req, res) => {

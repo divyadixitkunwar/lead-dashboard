@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prismaClient');
-const { protect } = require('../middleware/auth');
+const { protect, requireActive } = require('../middleware/auth');
 const {
     generateVerificationCode,
     createAuthToken,
@@ -16,25 +16,15 @@ const { sendVerificationEmail, sendPasswordResetCodeEmail } = require('../servic
 const VERIFY_CODE_TTL_MS = 15 * 60 * 1000;
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 
-// users.status now carries three meanings instead of two:
-//   'pending'          -> signed up, hasn't clicked the email link yet
-//   'pending_approval'  -> email verified, waiting on the owner to approve
-//   'active'            -> approved, full access
-//   'rejected'           -> owner declined the application
-// No schema change needed for any of this — status was always a plain
-// string column, this is just using it correctly.
+
 
 function issueSessionToken(user) {
     return jwt.sign(
         { id: user.id, email: user.email, role: user.role, business_id: user.business_id },
         process.env.JWT_SECRET
-        // no expiresIn — sessions last until logout, not a forced window
     );
 }
 
-// Shared shape for every endpoint that hands back "who is this and where
-// should the frontend send them" — login, verify-email, and /me all return
-// exactly this so the frontend only has one response shape to branch on.
 async function buildAuthPayload(user) {
     const channelCount = await prisma.business_channels.count({
         where: { business_id: user.business_id },
@@ -50,8 +40,7 @@ async function buildAuthPayload(user) {
     };
 }
 
-// Generates + emails a fresh code for a user, respecting the 60s cooldown /
-// 5-per-hour cap. Throws with .status set so the route can just catch it.
+
 async function issueVerificationCode(user) {
     const check = await checkResendCooldown(prisma, user.id, 'email_verify');
     if (!check.allowed) {
@@ -68,7 +57,6 @@ async function issueVerificationCode(user) {
     await sendVerificationEmail(user.email, code);
 }
 
-// POST /auth/register — creates business + admin user, sends a verification code
 router.post('/register', async (req, res) => {
     try {
         const { business_name, name, email, password, facebook_contact } = req.body;
@@ -83,8 +71,7 @@ router.post('/register', async (req, res) => {
         let user;
 
         if (existing) {
-            // Signed up before but never verified — resend a fresh code
-            // instead of blocking with "email in use".
+
             if (existing.status === 'pending' && existing.password_hash) {
                 user = await prisma.users.update({
                     where: { id: existing.id },
@@ -114,11 +101,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// POST /auth/verify-email — proves the email is real, then logs them in for
-// good (per the agreed flow, verifying = logged in until they log out —
-// there's no second "log in again to check status" step). What used to send
-// them to `active` + straight to Connect Channel now sends them to
-// `pending_approval` + the waiting page instead.
+
 router.post('/verify-email', async (req, res) => {
     try {
         const { email, code } = req.body;
@@ -148,10 +131,7 @@ router.post('/verify-email', async (req, res) => {
     }
 });
 
-// POST /auth/resend-verification — only makes sense while still `pending`
-// (unverified). Previously this only excluded `active`, which meant it
-// would happily "resend a verification code" to someone already sitting in
-// pending_approval — fixed to exclude every already-verified state.
+
 router.post('/resend-verification', async (req, res) => {
     try {
         const { email } = req.body;
@@ -170,14 +150,7 @@ router.post('/resend-verification', async (req, res) => {
     }
 });
 
-// POST /auth/login — now branches on all four status values instead of
-// just active/not-active:
-//   pending           -> 403 EMAIL_NOT_VERIFIED (unchanged)
-//   rejected          -> 403 APPLICATION_REJECTED, no token issued
-//   pending_approval  -> 200, token issued (lets someone who closed their
-//                        tab log back in and land on the waiting page,
-//                        without re-verifying their email)
-//   active            -> 200, token issued, as before
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -202,11 +175,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// GET /auth/me — the "what's my current status" check. Deliberately behind
-// `protect` only (no `requireActive`) since its whole job is letting
-// pending_approval/rejected accounts learn where they stand. Frontend calls
-// this on every app load so approvals that happened while someone's tab was
-// closed show up the next time they open it, with no re-login involved.
+
 router.get('/me', protect, async (req, res) => {
     try {
         const user = await prisma.users.findUnique({ where: { id: req.user.id } });
@@ -218,11 +187,7 @@ router.get('/me', protect, async (req, res) => {
     }
 });
 
-// POST /auth/forgot-password — generic response whenever the email isn't
-// found or can't get a code right now (never reveals whether it's registered).
-// Broadened from "active only" to also cover pending_approval — someone
-// waiting on approval still has a real account and shouldn't be locked out
-// of resetting a forgotten password while they wait.
+
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
@@ -248,8 +213,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 });
 
-// POST /auth/reset-password — {email, code, password}. Frontend redirects to
-// /login afterward rather than auto-logging in, so this just confirms success.
+
 router.post('/reset-password', async (req, res) => {
     try {
         const { email, code, password } = req.body;
@@ -278,6 +242,48 @@ router.post('/reset-password', async (req, res) => {
 
 router.post('/logout', protect, (req, res) => {
     res.json({ message: 'Logged out successfully' });
+});
+
+
+router.patch('/profile', protect, requireActive, async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+        const updated = await prisma.users.update({
+            where: { id: req.user.id },
+            data: { name: name.trim() },
+        });
+        const payload = await buildAuthPayload(updated);
+        res.json(payload);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+router.post('/change-password', protect, requireActive, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+        }
+        if (newPassword.length < 8) {
+            return res.status(400).json({ error: 'New password must be at least 8 characters' });
+        }
+
+        const user = await prisma.users.findUnique({ where: { id: req.user.id } });
+        const valid = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        const password_hash = await bcrypt.hash(newPassword, 12);
+        await prisma.users.update({ where: { id: user.id }, data: { password_hash } });
+
+        res.json({ message: 'Password updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 module.exports = router;

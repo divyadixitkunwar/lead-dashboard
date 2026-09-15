@@ -1,26 +1,8 @@
-// Thin wrapper around the handful of Graph API calls needed to connect a
-// Facebook Page (and its linked Instagram account) via Facebook Login for
-// Business. Kept separate from the route file so routes/channels.js stays
-// focused on request/response handling, matching how intentTagger.js and
-// messageClassifier.js are split out for ingest.js.
+
 
 const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
-// Step 1: swap the short-lived `code` the frontend got from FB.login for a
-// short-lived user access token.
-async function exchangeCodeForToken(code) {
-    const url = `${GRAPH_BASE}/oauth/access_token` +
-        `?client_id=${process.env.META_APP_ID}` +
-        `&client_secret=${process.env.META_APP_SECRET}` +
-        `&code=${code}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || 'Failed to exchange code for token');
-    return data.access_token;
-}
-
-// Step 2: trade the short-lived user token for a long-lived one (~60 days).
 async function getLongLivedToken(shortLivedToken) {
     const url = `${GRAPH_BASE}/oauth/access_token` +
         `?grant_type=fb_exchange_token` +
@@ -33,41 +15,87 @@ async function getLongLivedToken(shortLivedToken) {
     return data.access_token;
 }
 
-// Step 3: list every Page this person manages. Each Page comes with its
-// own access token — these are derived from the long-lived user token and
-// don't expire on their own timer the way the user token does.
+
 async function getManagedPages(userAccessToken) {
-    const url = `${GRAPH_BASE}/me/accounts?access_token=${userAccessToken}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || 'Failed to fetch Pages');
-    return data.data || [];
+    const personalUrl = `${GRAPH_BASE}/me/accounts?access_token=${userAccessToken}`;
+    const personalResp = await fetch(personalUrl);
+    const personalData = await personalResp.json();
+    if (!personalResp.ok) throw new Error(personalData.error?.message || 'Failed to fetch Pages');
+    const personalPages = personalData.data || [];
+
+
+    const businessPages = [];
+    try {
+        const bizUrl = `${GRAPH_BASE}/me/businesses?access_token=${userAccessToken}`;
+        const bizResp = await fetch(bizUrl);
+        const bizData = await bizResp.json();
+        const businesses = bizResp.ok ? (bizData.data || []) : [];
+
+        for (const business of businesses) {
+            const ownedUrl = `${GRAPH_BASE}/${business.id}/owned_pages?access_token=${userAccessToken}`;
+            const ownedResp = await fetch(ownedUrl);
+            const ownedData = await ownedResp.json();
+            if (!ownedResp.ok) continue;
+
+            for (const page of (ownedData.data || [])) {
+
+                const tokenUrl = `${GRAPH_BASE}/${page.id}?fields=name,access_token&access_token=${userAccessToken}`;
+                const tokenResp = await fetch(tokenUrl);
+                const tokenData = await tokenResp.json();
+                if (tokenResp.ok && tokenData.access_token) {
+                    businessPages.push({ id: page.id, name: tokenData.name || page.name, access_token: tokenData.access_token });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Business-owned Pages lookup failed:', err.message);
+    }
+
+    const seen = new Set();
+    const merged = [];
+    for (const page of [...personalPages, ...businessPages]) {
+        if (seen.has(page.id)) continue;
+        seen.add(page.id);
+        merged.push(page);
+    }
+    return merged;
 }
 
-// Step 4: check whether a given Page has a linked Instagram professional
-// account. Returns null if there isn't one, or if the lookup fails for any
-// reason — callers treat "no Instagram" as a normal, expected outcome.
+
 async function getLinkedInstagramAccount(pageId, pageAccessToken) {
     try {
         const url = `${GRAPH_BASE}/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`;
         const resp = await fetch(url);
         const data = await resp.json();
-        if (!resp.ok || !data.instagram_business_account) return null;
+        if (resp.ok && data.instagram_business_account) {
+            const igId = data.instagram_business_account.id;
+            const igUrl = `${GRAPH_BASE}/${igId}?fields=username&access_token=${pageAccessToken}`;
+            const igResp = await fetch(igUrl);
+            const igData = await igResp.json();
+            return { id: igId, username: igResp.ok ? igData.username : null };
+        }
 
-        const igId = data.instagram_business_account.id;
-        const igUrl = `${GRAPH_BASE}/${igId}?fields=username&access_token=${pageAccessToken}`;
-        const igResp = await fetch(igUrl);
-        const igData = await igResp.json();
-        return { id: igId, username: igResp.ok ? igData.username : null };
+
+        const bizLookupUrl = `${GRAPH_BASE}/${pageId}?fields=business&access_token=${pageAccessToken}`;
+        const bizLookupResp = await fetch(bizLookupUrl);
+        const bizLookupData = await bizLookupResp.json();
+        const businessId = bizLookupData.business?.id;
+        if (!businessId) return null;
+
+        const ownedUrl = `${GRAPH_BASE}/${businessId}/owned_instagram_assets?access_token=${pageAccessToken}`;
+        const ownedResp = await fetch(ownedUrl);
+        const ownedData = await ownedResp.json();
+        if (!ownedResp.ok || !(ownedData.data || []).length) return null;
+
+        const asset = ownedData.data[0];
+        return { id: asset.ig_user_id, username: asset.ig_username };
     } catch (err) {
         console.error('Instagram lookup failed:', err.message);
         return null;
     }
 }
 
-// Step 5: turn the webhook on for this Page. Instagram messaging rides on
-// the same subscription once the Page has a linked IG account, so this is
-// the only subscribe call needed either way.
+
 async function subscribePageWebhook(pageId, pageAccessToken) {
     const url = `${GRAPH_BASE}/${pageId}/subscribed_apps` +
         `?subscribed_fields=messages,messaging_postbacks` +
@@ -79,7 +107,6 @@ async function subscribePageWebhook(pageId, pageAccessToken) {
 }
 
 module.exports = {
-    exchangeCodeForToken,
     getLongLivedToken,
     getManagedPages,
     getLinkedInstagramAccount,

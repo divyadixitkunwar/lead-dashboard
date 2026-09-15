@@ -4,8 +4,6 @@ const bcrypt = require('bcrypt');
 const prisma = require('../prismaClient');
 const { protect, adminOnly, requireActive, requireChannel } = require('../middleware/auth');
 
-// Same reasoning as leads.js — a valid token no longer implies "approved,"
-// and being approved no longer implies "has something to manage."
 router.use(protect, requireActive, requireChannel);
 
 router.get('/', adminOnly, async (req, res) => {

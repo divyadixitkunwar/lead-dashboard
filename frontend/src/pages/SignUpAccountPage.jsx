@@ -1,47 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
+import { StepIndicator } from '../components/StepIndicator';
 import heroImage from '../assets/hero-himalaya.jpg';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-// Shared across both signup screens (Account / Verify). Connecting a
-// channel no longer happens as a third wizard step — it happens after
-// approval, from the dashboard — so this only ever renders two steps now.
-export function StepIndicator({ steps, activeIndex }) {
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px', fontFamily: tokens.font }}>
-            {steps.map((label, i) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span
-                            style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                flexShrink: 0,
-                                background: i === activeIndex ? tokens.ink : 'transparent',
-                                border: i === activeIndex ? 'none' : `1px solid rgba(27,23,18,0.45)`,
-                            }}
-                        />
-                        <span
-                            style={{
-                                fontSize: '14px',
-                                fontWeight: i === activeIndex ? 600 : 500,
-                                color: i === activeIndex ? tokens.ink : 'rgba(27,23,18,0.45)',
-                            }}
-                        >
-                            {label}
-                        </span>
-                    </div>
-                    {i < steps.length - 1 && (
-                        <span style={{ width: '56px', height: '1px', background: 'rgba(27,23,18,0.2)' }} />
-                    )}
-                </div>
-            ))}
-        </div>
-    );
-}
 
 function Field({ id, label, type = 'text', value, onChange, autoComplete, helper }) {
     return (
@@ -94,7 +57,6 @@ export default function SignupAccountPage() {
         setSubmitting(true);
 
         try {
-            // UPDATED: actually call the backend registration endpoint
             const res = await fetch(`${API_BASE}/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -108,7 +70,6 @@ export default function SignupAccountPage() {
                 return;
             }
 
-            // UPDATED: only go to verification after registration succeeds
             navigate('/signup/verify', {
                 state: { email: data.email || form.email },
             });

@@ -4,28 +4,38 @@ import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 
 const STATUS = {
-    new: { color: '#0071E3', bg: 'rgba(0,113,227,0.08)', label: 'New' },
-    contacted: { color: '#FF9500', bg: 'rgba(255,149,0,0.08)', label: 'Contacted' },
-    qualified: { color: '#34C759', bg: 'rgba(52,199,89,0.08)', label: 'Qualified' },
-    closed: { color: '#AEAEB2', bg: 'rgba(174,174,178,0.1)', label: 'Closed' },
+    new: { color: '#52779a', bg: '#edf3f6', label: 'New' },
+    contacted: { color: '#8a6a2f', bg: '#f6f0df', label: 'Contacted' },
+    qualified: { color: '#3f7654', bg: '#edf5ef', label: 'Qualified' },
+    closed: { color: '#7c7972', bg: '#efede8', label: 'Closed' },
 };
 
 const INTENT = {
-    price_inquiry: { color: '#AF52DE', bg: 'rgba(175,82,222,0.08)', label: 'Price' },
-    delivery_inquiry: { color: '#FF9500', bg: 'rgba(255,149,0,0.08)', label: 'Delivery' },
-    availability: { color: '#30B0C7', bg: 'rgba(48,176,199,0.08)', label: 'Stock' },
-    unclassified: { color: '#AEAEB2', bg: 'rgba(174,174,178,0.08)', label: 'General' },
+    price_inquiry: { color: '#6d5a87', bg: '#f2eef7', label: 'Price' },
+    delivery_inquiry: { color: '#8a6a2f', bg: '#f6f0df', label: 'Delivery' },
+    availability: { color: '#3d7480', bg: '#eaf3f4', label: 'Stock' },
+    unclassified: { color: '#7c7972', bg: '#efede8', label: 'General' },
 };
 
-const CHANNEL_ICON = { whatsapp: '💬', messenger: '💙', instagram: '🌸' };
+const CHANNEL_ICON = {
+    whatsapp: 'WhatsApp',
+    messenger: 'Messenger',
+    instagram: 'Instagram',
+};
 
-const font = "'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
+const font = 'Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
 
 const Badge = ({ color, bg, label }) => (
     <span style={{
-        display: 'inline-flex', alignItems: 'center', gap: '6px',
-        fontSize: '13px', fontWeight: '500', color,
-        background: bg, borderRadius: '7px', padding: '4px 10px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '7px',
+        fontSize: '13px',
+        fontWeight: 550,
+        color,
+        background: bg,
+        borderRadius: '999px',
+        padding: '5px 10px',
         whiteSpace: 'nowrap',
     }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
@@ -33,17 +43,26 @@ const Badge = ({ color, bg, label }) => (
     </span>
 );
 
-const StatCard = ({ label, value, sub, color }) => (
+const StatCard = ({ label, value, sub, muted }) => (
     <div style={{
-        background: '#fff', borderRadius: '16px', padding: '24px 28px',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
-        flex: 1,
+        background: '#fffdfa',
+        border: '1px solid rgba(33,33,31,0.08)',
+        borderRadius: '15px',
+        padding: '17px 18px 16px',
+        minWidth: 0,
     }}>
-        <div style={{ fontSize: '32px', fontWeight: '600', color: color || '#1D1D1F', letterSpacing: '-0.03em', lineHeight: 1 }}>
+        <div style={{
+            color: muted ? '#8f8b83' : '#21211f',
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontSize: '31px',
+            fontWeight: 400,
+            lineHeight: 1,
+            letterSpacing: '-0.03em',
+        }}>
             {value}
         </div>
-        <div style={{ fontSize: '14px', fontWeight: '500', color: '#1D1D1F', marginTop: '8px' }}>{label}</div>
-        {sub && <div style={{ fontSize: '13px', color: '#AEAEB2', marginTop: '3px' }}>{sub}</div>}
+        <div style={{ marginTop: '9px', color: '#34322f', fontSize: '13px', fontWeight: 550 }}>{label}</div>
+        {sub && <div style={{ marginTop: '3px', color: '#959087', fontSize: '12px' }}>{sub}</div>}
     </div>
 );
 
@@ -58,19 +77,26 @@ export default function DashboardPage() {
     useEffect(() => { fetchLeads(); }, [filters]);
 
     const fetchLeads = async () => {
+        setLoading(true);
         try {
             const params = {};
             Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
             const res = await api.get('/leads', { params });
             setLeads(res.data);
-        } catch (err) { console.error(err); }
-        finally { setLoading(false); }
+        } catch (err) {
+            console.error(err);
+            setLeads([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const filtered = leads.filter(l =>
-        l.contact_name.toLowerCase().includes(search.toLowerCase()) ||
-        (l.phone && l.phone.includes(search))
-    );
+    const filtered = leads.filter(l => {
+        const name = (l.contact_name || '').toLowerCase();
+        const phone = l.phone || '';
+        const query = search.toLowerCase();
+        return name.includes(query) || phone.includes(search);
+    });
 
     const stats = {
         total: leads.length,
@@ -83,22 +109,28 @@ export default function DashboardPage() {
         const d = new Date(str);
         const now = new Date();
         const diff = now - d;
-        if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+        if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}m ago`;
         if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
     const SelectFilter = ({ filterKey, options, placeholder }) => (
         <select
+            aria-label={placeholder}
             value={filters[filterKey]}
             onChange={e => setFilters(f => ({ ...f, [filterKey]: e.target.value }))}
             style={{
-                background: filters[filterKey] ? '#1D1D1F' : '#F5F5F7',
-                color: filters[filterKey] ? '#fff' : '#6E6E73',
-                border: 'none', borderRadius: '8px',
-                padding: '8px 13px', fontSize: '14px',
-                fontFamily: font, cursor: 'pointer', outline: 'none',
-                fontWeight: filters[filterKey] ? '500' : '400',
+                minHeight: '37px',
+                color: filters[filterKey] ? '#21211f' : '#77736b',
+                background: filters[filterKey] ? '#eee9df' : '#f6f3ed',
+                border: `1px solid ${filters[filterKey] ? 'rgba(33,33,31,0.14)' : 'transparent'}`,
+                borderRadius: '999px',
+                padding: '0 11px',
+                fontSize: '13px',
+                fontFamily: font,
+                cursor: 'pointer',
+                outline: 'none',
+                fontWeight: filters[filterKey] ? 550 : 450,
             }}
         >
             <option value="">{placeholder}</option>
@@ -110,171 +142,113 @@ export default function DashboardPage() {
 
     return (
         <Sidebar>
-            <div style={{ fontFamily: font, padding: '40px 48px', width: '100%', boxSizing: 'border-box' }}>
-
-                {/* Header */}
-                <div style={{ marginBottom: '28px' }}>
-                    <h1 style={{ fontSize: '26px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.02em', marginBottom: '5px', margin: 0 }}>
-                        Leads
-                    </h1>
-                    <p style={{ fontSize: '14px', color: '#6E6E73', margin: '5px 0 0' }}>
-                        Incoming messages across all channels
-                    </p>
+            <div style={{ width: '100%', boxSizing: 'border-box', fontFamily: font }}>
+                <div className="dashboard-heading">
+                    <div>
+                        <h1>Leads</h1>
+                        <p>Incoming messages across your connected channels.</p>
+                    </div>
                 </div>
 
-                {/* Stats */}
-                <div style={{ display: 'flex', gap: '14px', marginBottom: '24px' }}>
+                <div className="dashboard-stat-grid">
                     <StatCard label="Total leads" value={stats.total} />
-                    <StatCard label="New leads" value={stats.new} color="#0071E3" sub="Awaiting response" />
-                    <StatCard label="Qualified" value={stats.qualified} color="#34C759" />
-                    <StatCard label="Duplicates" value={stats.duplicates} color="#FF3B30" sub="Needs review" />
+                    <StatCard label="New leads" value={stats.new} sub="Awaiting response" />
+                    <StatCard label="Qualified" value={stats.qualified} />
+                    <StatCard label="Duplicates" value={stats.duplicates} sub="Needs review" muted={!stats.duplicates} />
                 </div>
 
-                {/* Toolbar */}
-                <div style={{
-                    background: '#fff', borderRadius: '14px',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
-                    padding: '14px 18px', marginBottom: '12px',
-                    display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
-                }}>
-                    {/* Search */}
-                    <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-                        <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#AEAEB2' }} width="15" height="15" viewBox="0 0 14 14" fill="none">
-                            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3" />
-                            <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Search by name or phone..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            onFocus={() => setFocusSearch(true)}
-                            onBlur={() => setFocusSearch(false)}
-                            style={{
-                                width: '100%', boxSizing: 'border-box',
-                                background: '#F5F5F7', border: `1px solid ${focusSearch ? '#0071E3' : 'transparent'}`,
-                                borderRadius: '8px', padding: '8px 13px 8px 34px',
-                                fontSize: '14px', color: '#1D1D1F', outline: 'none',
-                                fontFamily: font,
-                                boxShadow: focusSearch ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
-                                transition: 'all 0.15s',
-                            }}
-                        />
-                    </div>
-
-                    <div style={{ width: '1px', height: '22px', background: 'rgba(0,0,0,0.08)' }} />
-
-                    <SelectFilter filterKey="status" placeholder="All status" options={['new', 'contacted', 'qualified', 'closed']} />
-                    <SelectFilter filterKey="channel" placeholder="All channels" options={['whatsapp', 'messenger', 'instagram']} />
-                    <SelectFilter filterKey="intent" placeholder="All intent" options={['price_inquiry', 'delivery_inquiry', 'availability', 'unclassified']} />
-                    <SelectFilter filterKey="message_type" placeholder="All types" options={['customer_lead', 'supplier', 'general']} />
-
-                    {hasFilters && (
-                        <button
-                            onClick={() => { setFilters({ status: '', channel: '', intent: '', message_type: '' }); setSearch(''); }}
-                            style={{
-                                background: 'none', border: 'none', fontSize: '14px', color: '#FF3B30',
-                                cursor: 'pointer', fontFamily: font, padding: '4px 8px', borderRadius: '6px',
-                            }}
-                        >
-                            Clear
-                        </button>
-                    )}
-                </div>
-
-                {/* Table */}
-                <div style={{
-                    background: '#fff', borderRadius: '16px',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
-                    overflow: 'hidden',
-                }}>
-                    {/* Header row */}
-                    <div style={{
-                        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
-                        padding: '12px 24px', borderBottom: '1px solid rgba(0,0,0,0.06)',
-                        background: '#FAFAFA',
-                    }}>
-                        {['Contact', 'Channel', 'Intent', 'Type', 'Status', 'Date'].map(h => (
-                            <div key={h} style={{ fontSize: '11px', fontWeight: '600', color: '#AEAEB2', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                {h}
-                            </div>
-                        ))}
-                    </div>
-
-                    {loading ? (
-                        <div style={{ padding: '80px', textAlign: 'center', fontSize: '15px', color: '#AEAEB2' }}>
-                            Loading...
+                <section className="dashboard-panel">
+                    <div className="dashboard-panel-header">
+                        <div>
+                            <strong>All leads</strong>
+                            <span>{filtered.length} shown</span>
                         </div>
-                    ) : filtered.length === 0 ? (
-                        <div style={{ padding: '80px', textAlign: 'center', fontSize: '15px', color: '#AEAEB2' }}>
-                            No leads found
-                        </div>
-                    ) : filtered.map((lead, i) => {
-                        const st = STATUS[lead.status] || STATUS.new;
-                        const int = INTENT[lead.intent] || INTENT.unclassified;
-                        return (
-                            <div
-                                key={lead.id}
-                                onClick={() => navigate(`/app/leads/${lead.id}`)}
-                                style={{
-                                    display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
-                                    padding: '16px 24px', cursor: 'pointer', alignItems: 'center',
-                                    borderBottom: i < filtered.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-                                    transition: 'background 0.1s',
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        {hasFilters && (
+                            <button
+                                onClick={() => { setFilters({ status: '', channel: '', intent: '', message_type: '' }); setSearch(''); }}
+                                className="dashboard-clear"
                             >
-                                {/* Contact */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '13px', minWidth: 0 }}>
-                                    <div style={{
-                                        width: '38px', height: '38px', borderRadius: '12px', flexShrink: 0,
-                                        background: 'linear-gradient(135deg, #1D1D1F, #3A3A3C)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '14px', fontWeight: '500', color: '#fff',
-                                    }}>
-                                        {lead.contact_name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#1D1D1F', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                                            {lead.contact_name}
-                                            {lead.possible_duplicate && (
-                                                <span style={{ fontSize: '10px', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', borderRadius: '4px', padding: '1px 5px', fontWeight: '600' }}>
-                                                    DUP
-                                                </span>
-                                            )}
-                                        </div>
-                                        {lead.phone && <div style={{ fontSize: '13px', color: '#AEAEB2', marginTop: '2px' }}>{lead.phone}</div>}
-                                    </div>
-                                </div>
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
 
-                                {/* Channel */}
-                                <div style={{ fontSize: '14px', color: '#6E6E73' }}>
-                                    {CHANNEL_ICON[lead.channel]} {lead.channel}
-                                </div>
+                    <div className="dashboard-toolbar">
+                        <div className="dashboard-search">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.6" />
+                                <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                            </svg>
+                            <input
+                                type="text"
+                                placeholder="Search by name or phone"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                onFocus={() => setFocusSearch(true)}
+                                onBlur={() => setFocusSearch(false)}
+                                style={{
+                                    borderColor: focusSearch ? 'rgba(82,119,154,0.55)' : 'rgba(33,33,31,0.08)',
+                                    boxShadow: focusSearch ? '0 0 0 3px rgba(82,119,154,0.10)' : 'none',
+                                }}
+                            />
+                        </div>
+                        <SelectFilter filterKey="status" placeholder="Status" options={['new', 'contacted', 'qualified', 'closed']} />
+                        <SelectFilter filterKey="channel" placeholder="Channel" options={['whatsapp', 'messenger', 'instagram']} />
+                        <SelectFilter filterKey="intent" placeholder="Intent" options={['price_inquiry', 'delivery_inquiry', 'availability', 'unclassified']} />
+                        <SelectFilter filterKey="message_type" placeholder="Type" options={['customer_lead', 'supplier', 'general']} />
+                    </div>
 
-                                {/* Intent */}
-                                <div><Badge color={int.color} bg={int.bg} label={int.label} /></div>
+                    <div className="dashboard-table-wrap">
+                        <div className="dashboard-table-head">
+                            {['Contact', 'Channel', 'Intent', 'Type', 'Status', 'Date'].map(h => (
+                                <div key={h}>{h}</div>
+                            ))}
+                        </div>
 
-                                {/* Type */}
-                                <div style={{ fontSize: '13px', color: '#AEAEB2', textTransform: 'capitalize' }}>
-                                    {lead.message_type.replace(/_/g, ' ')}
-                                </div>
-
-                                {/* Status */}
-                                <div><Badge color={st.color} bg={st.bg} label={st.label} /></div>
-
-                                {/* Date */}
-                                <div style={{ fontSize: '13px', color: '#AEAEB2' }}>{fmtDate(lead.created_at)}</div>
+                        {loading ? (
+                            <div className="dashboard-table-state">Loading leads...</div>
+                        ) : filtered.length === 0 ? (
+                            <div className="dashboard-table-state">
+                                <strong>No leads found</strong>
+                                <span>Try clearing a filter or changing your search.</span>
                             </div>
-                        );
-                    })}
-                </div>
+                        ) : filtered.map((lead, i) => {
+                            const st = STATUS[lead.status] || STATUS.new;
+                            const intent = INTENT[lead.intent] || INTENT.unclassified;
+                            return (
+                                <div
+                                    key={lead.id}
+                                    className="dashboard-row"
+                                    onClick={() => navigate(`/app/leads/${lead.id}`)}
+                                    style={{ borderBottomColor: i < filtered.length - 1 ? 'rgba(33,33,31,0.06)' : 'transparent' }}
+                                >
+                                    <div className="dashboard-contact">
+                                        <div className="dashboard-contact-avatar">
+                                            {(lead.contact_name || '?').charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="dashboard-contact-copy">
+                                            <div>
+                                                {lead.contact_name || 'Unknown contact'}
+                                                {lead.possible_duplicate && <span className="dashboard-dup">DUP</span>}
+                                            </div>
+                                            {lead.phone && <small>{lead.phone}</small>}
+                                        </div>
+                                    </div>
+                                    <div className="dashboard-channel">{CHANNEL_ICON[lead.channel] || lead.channel}</div>
+                                    <div><Badge color={intent.color} bg={intent.bg} label={intent.label} /></div>
+                                    <div className="dashboard-type">{(lead.message_type || 'general').replace(/_/g, ' ')}</div>
+                                    <div><Badge color={st.color} bg={st.bg} label={st.label} /></div>
+                                    <div className="dashboard-date">{fmtDate(lead.created_at)}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                <div style={{ marginTop: '12px', fontSize: '13px', color: '#AEAEB2', textAlign: 'right' }}>
-                    {filtered.length} of {leads.length} leads
-                </div>
-
+                    <div className="dashboard-panel-footer">
+                        <span>{filtered.length} of {leads.length} leads</span>
+                        <span>Click a lead to view details</span>
+                    </div>
+                </section>
             </div>
         </Sidebar>
     );

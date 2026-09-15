@@ -111,7 +111,6 @@ export default function LeadDetailPage() {
         <Sidebar>
             <div style={{ fontFamily: font, padding: '40px 48px', width: '100%', boxSizing: 'border-box' }}>
 
-                {/* Back */}
                 <button
                     onClick={() => navigate('/app')}
                     style={{
@@ -127,7 +126,6 @@ export default function LeadDetailPage() {
                     Back to Leads
                 </button>
 
-                {/* Duplicate banner */}
                 {lead.possible_duplicate && (
                     <div style={{
                         background: 'rgba(255,59,48,0.06)', border: '1px solid rgba(255,59,48,0.15)',
@@ -144,7 +142,6 @@ export default function LeadDetailPage() {
                     </div>
                 )}
 
-                {/* Header card */}
                 <div style={{
                     background: '#fff', borderRadius: '18px',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
@@ -152,7 +149,6 @@ export default function LeadDetailPage() {
                 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap' }}>
 
-                        {/* Left: identity */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <div style={{
                                 width: '62px', height: '62px', borderRadius: '18px', flexShrink: 0,
@@ -181,7 +177,6 @@ export default function LeadDetailPage() {
                             </div>
                         </div>
 
-                        {/* Right: actions */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <select
                                 value={status}
@@ -216,7 +211,6 @@ export default function LeadDetailPage() {
                     </div>
                 </div>
 
-                {/* Meta strip */}
                 <div style={{
                     background: '#fff', borderRadius: '14px',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06)',
@@ -225,16 +219,14 @@ export default function LeadDetailPage() {
                 }}>
                     <MetaItem label="Created" value={fmtDate(lead.created_at)} />
                     <MetaItem label="Last updated" value={fmtDate(lead.updated_at)} />
-                    <MetaItem label="Thread ID" value={lead.platform_thread_id || '—'} />
+                    <MetaItem label="Thread ID" value={lead.platform_thread_id || ' - '} />
                     <MetaItem label="Assigned to" value={lead.assigned_to ? `User #${lead.assigned_to}` : 'Unassigned'} />
                     <MetaItem label="Messages" value={lead.messages?.length || 0} />
                     <MetaItem label="Notes" value={lead.notes?.length || 0} />
                 </div>
 
-                {/* Content grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
 
-                    {/* Messages */}
                     <div style={{
                         background: '#fff', borderRadius: '18px',
                         boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
@@ -271,7 +263,6 @@ export default function LeadDetailPage() {
                         </div>
                     </div>
 
-                    {/* Notes */}
                     <div style={{
                         background: '#fff', borderRadius: '18px',
                         boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
@@ -306,7 +297,6 @@ export default function LeadDetailPage() {
                             ))}
                         </div>
 
-                        {/* Add note */}
                         <div style={{ padding: '20px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                             <textarea
                                 value={noteContent}

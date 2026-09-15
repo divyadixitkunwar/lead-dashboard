@@ -100,7 +100,6 @@ export default function UsersPage() {
         <Sidebar>
             <div style={{ fontFamily: font, padding: '40px 48px', width: '100%', boxSizing: 'border-box' }}>
 
-                {/* Page header */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', gap: '16px', flexWrap: 'wrap' }}>
                     <div>
                         <div style={{ fontSize: '26px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.02em', marginBottom: '5px' }}>
@@ -132,7 +131,6 @@ export default function UsersPage() {
                     </button>
                 </div>
 
-                {/* Meta strip */}
                 <div style={{
                     background: '#fff', borderRadius: '14px',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.06)',
@@ -144,7 +142,6 @@ export default function UsersPage() {
                     <MetaItem label="Staff" value={users.filter(u => u.role === 'staff').length} />
                 </div>
 
-                {/* Add user form */}
                 {showForm && (
                     <div style={{
                         background: '#fff', borderRadius: '18px',
@@ -224,13 +221,11 @@ export default function UsersPage() {
                     </div>
                 )}
 
-                {/* Users table */}
                 <div style={{
                     background: '#fff', borderRadius: '18px',
                     boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.06)',
                     overflow: 'hidden',
                 }}>
-                    {/* Table header */}
                     <div style={{
                         display: 'grid', gridTemplateColumns: '1fr 140px 160px 100px',
                         padding: '16px 28px', borderBottom: '1px solid rgba(0,0,0,0.06)',
@@ -266,7 +261,6 @@ export default function UsersPage() {
                             onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                            {/* Identity */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <div style={{
                                     width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
@@ -284,7 +278,6 @@ export default function UsersPage() {
                                 </div>
                             </div>
 
-                            {/* Role selector */}
                             <div>
                                 <select
                                     value={user.role}
@@ -303,12 +296,10 @@ export default function UsersPage() {
                                 </select>
                             </div>
 
-                            {/* Joined date */}
                             <div style={{ fontSize: '13px', color: '#AEAEB2' }}>
                                 {fmtDate(user.created_at)}
                             </div>
 
-                            {/* Remove */}
                             <div style={{ textAlign: 'right' }}>
                                 <button
                                     onClick={() => deleteUser(user.id)}

@@ -1,29 +1,8 @@
-// One-time setup — NOT an API route, not something you run repeatedly.
-// Creates the single account that can see every business's approval
-// status, across all businesses (something a normal business-scoped
-// `admin` role can never do, since every other route in this app is
-// filtered to req.user.business_id).
-//
-// Run once, after you have DATABASE_URL pointed at your real database:
-//
-//   OWNER_NAME="Your Name" OWNER_EMAIL="you@yourdomain.com" OWNER_PASSWORD="something-long-and-real" node scripts/createOwner.js
-//
-// After this runs, log in at the normal /login page with that email and
-// password — same as any customer. The app recognizes the role on your
-// account and takes you to /admin/approvals instead of a business
-// dashboard. You never run this script again unless you're rebuilding the
-// database from scratch.
-
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const prisma = require('../src/prismaClient');
 
-// users.business_id is a required field on every user row in this schema —
-// including the owner's. Rather than changing that (which would ripple into
-// every existing query that assumes business_id is always present), the
-// owner gets attached to one dedicated internal "business" that never shows
-// up in the approval queue (the queue only ever looks at role: 'admin' rows,
-// and this account is role: 'superadmin').
+
 const PLATFORM_BUSINESS_NAME = '__platform__';
 
 async function main() {

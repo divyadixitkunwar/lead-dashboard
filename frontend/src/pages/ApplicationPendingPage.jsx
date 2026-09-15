@@ -1,22 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
 import { useAuth } from '../context/AuthContext';
 import heroImage from '../assets/hero-himalaya.jpg';
 
-// Reachable at /application-pending any time someone is logged in and not
-// yet approved — not a step in the signup wizard. Closing the tab and
-// coming back later just shows this same screen again automatically,
-// because ProtectedRoute/App.jsx route here based on the account's live
-// status, not based on "did they just finish verifying."
 export default function ApplicationPendingPage() {
     const navigate = useNavigate();
     const { user, logout, refreshUser } = useAuth();
     const [checking, setChecking] = useState(false);
 
-    // If someone lands here, gets approved by the owner while the tab is
-    // still open, and then reloads or clicks back in, this pulls the fresh
-    // status and moves them along — no re-login required.
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -88,7 +80,7 @@ export default function ApplicationPendingPage() {
                                 We've got your application
                             </h1>
                             <p style={{ margin: 0, fontSize: '14.5px', color: tokens.inkMuted, lineHeight: 1.6 }}>
-                                Your email's verified — we're just reviewing your business before switching on
+                                Your email's verified  -  we're just reviewing your business before switching on
                                 full access. You don't need to do anything else here. You can close this
                                 tab and come back any time; logging in will just bring you straight back to
                                 this same page until that's done.
@@ -118,7 +110,7 @@ export default function ApplicationPendingPage() {
                     )}
 
                     <p style={{ margin: 0, fontSize: '13px', color: tokens.inkMuted }}>
-                        Signed in as {user.email} —{' '}
+                        Signed in as {user.email}  - {' '}
                         <a onClick={logout} style={{ color: tokens.ink, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer' }}>
                             log out
                         </a>

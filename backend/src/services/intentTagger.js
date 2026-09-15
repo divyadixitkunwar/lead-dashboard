@@ -1,6 +1,5 @@
 const { normalize } = require('./normalizer');
 
-// Keywords that signal each intent
 const intentKeywords = {
     price_inquiry: [
         'kati', 'paisa', 'dam', 'price', 'cost', 'rate', 'kitna',
@@ -26,7 +25,6 @@ function tagIntent(text) {
 
     const normalized = normalize(text);
 
-    // Score each intent by how many keywords match
     const scores = { price_inquiry: 0, delivery_inquiry: 0, availability: 0 };
 
     for (const [intent, keywords] of Object.entries(intentKeywords)) {
@@ -37,10 +35,8 @@ function tagIntent(text) {
         }
     }
 
-    // Find the highest scoring intent
     const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
 
-    // Only return it if at least one keyword matched
     if (best[1] === 0) return 'unclassified';
 
     return best[0];

@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import DesktopOnly from './components/DesktopOnly';
+import useIsDesktop from './hooks/useIsDesktop';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignUpAccountPage from './pages/SignUpAccountPage';
@@ -12,8 +14,15 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ApplicationPendingPage from './pages/ApplicationPendingPage';
 import AdminApprovalsPage from './pages/AdminApprovalsPage';
+import SettingsPage from './pages/SettingsPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 export default function App() {
+  const isDesktop = useIsDesktop();
+
+  if (!isDesktop) return <DesktopOnly />;
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -22,22 +31,13 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/signup/verify" element={<VerifyEmailPage />} />
-      {/* Now hits real, authenticated /channels endpoints, so — unlike
-          when it was a placeholder — it needs to be logged in to work
-          at all. Wrapped the same way as the other real pages. Deliberately
-          NOT given requireChannel — that would make it impossible to ever
-          connect the first channel, since this is the one place that lets
-          you get one. This is the one exception to the dashboard-wide block
-          below. */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/signup/connect" element={
         <ProtectedRoute>
           <ConnectChannelPage />
         </ProtectedRoute>
       } />
-      {/* Wrapped in plain ProtectedRoute (not a custom "any status" guard)
-          specifically so it shares the same `loading` gate as every other
-          protected page — without that, this page's own redirect logic
-          could fire before AuthContext finishes checking who's logged in. */}
       <Route path="/application-pending" element={
         <ProtectedRoute>
           <ApplicationPendingPage />
@@ -61,6 +61,11 @@ export default function App() {
       <Route path="/app/users" element={
         <ProtectedRoute adminOnly={true} requireChannel={true}>
           <UsersPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/app/settings" element={
+        <ProtectedRoute>
+          <SettingsPage />
         </ProtectedRoute>
       } />
     </Routes>

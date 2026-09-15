@@ -4,7 +4,6 @@ const prisma = require('../prismaClient');
 const { tagIntent } = require('../services/intentTagger');
 const { classifyMessageType } = require('../services/messageClassifier');
 
-// ---- Verification handshake (shared across all 3 products) ----
 router.get('/', (req, res) => {
     const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
     const mode = req.query['hub.mode'];
@@ -14,22 +13,18 @@ router.get('/', (req, res) => {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
         return res.status(200).send(challenge);
     }
-    // Deliberately not logging the attempted token here — it's Meta's
-    // configured secret, and a failed-verification log is a place someone
-    // debugging later might paste into a chat/issue without thinking about it.
+
     console.log('Webhook verification failed', { mode });
     return res.sendStatus(403);
 });
 
-// look up the full channel row (business_id + access_token) for this platform/external_id
 async function getChannel(platform, external_id) {
     return prisma.business_channels.findUnique({
         where: { platform_external_id: { platform, external_id } }
     });
 }
 
-// Graph API name lookup — used for Messenger/Instagram only.
-// Falls back to null on any failure; caller decides the fallback display value.
+
 async function fetchProfileName(userId, accessToken, fields) {
     if (!accessToken) return null;
     try {
@@ -44,7 +39,6 @@ async function fetchProfileName(userId, accessToken, fields) {
     }
 }
 
-// shared lead/message creation, business-scoped
 async function saveInboundMessage({ business_id, platform, contact_name, phone, thread_id, message }) {
     let lead = await prisma.leads.findFirst({
         where: { business_id, platform_thread_id: thread_id }
@@ -85,7 +79,6 @@ async function logUnrouted(payload, reason) {
     }).catch(() => { });
 }
 
-// ---- WhatsApp: object === 'whatsapp_business_account' ----
 async function handleWhatsApp(payload) {
     for (const entry of payload.entry || []) {
         for (const change of entry.changes || []) {
@@ -117,19 +110,15 @@ async function handleWhatsApp(payload) {
             }
 
             if (Array.isArray(value.statuses)) {
-                // Delivery/read receipts arrive here too — nothing currently
-                // uses them, intentionally not logged per-message to avoid
-                // flooding logs at real volume. Revisit if delivery status
-                // ever needs to show up in the UI.
+
             }
         }
     }
 }
 
-// ---- Messenger: object === 'page' ----
 async function handleMessenger(payload) {
     for (const entry of payload.entry || []) {
-        const external_id = entry.id; // PAGE_ID
+        const external_id = entry.id;
         const channel = await getChannel('messenger', external_id);
 
         if (!channel) {
@@ -138,7 +127,7 @@ async function handleMessenger(payload) {
         }
 
         for (const event of entry.messaging || []) {
-            if (!event.message || event.message.is_echo) continue; // skip echoes/postbacks/deliveries for now
+            if (!event.message || event.message.is_echo) continue;
 
             const psid = event.sender?.id;
             const message = event.message.text || '[Non-text message]';
@@ -148,7 +137,7 @@ async function handleMessenger(payload) {
             await saveInboundMessage({
                 business_id: channel.business_id,
                 platform: 'messenger',
-                contact_name: name || psid, // fallback to raw PSID if lookup fails/returns nothing
+                contact_name: name || psid,
                 phone: null,
                 thread_id: `messenger:${psid}`,
                 message
@@ -157,10 +146,9 @@ async function handleMessenger(payload) {
     }
 }
 
-// ---- Instagram: object === 'instagram' ----
 async function handleInstagram(payload) {
     for (const entry of payload.entry || []) {
-        const external_id = entry.id; // IG business account ID
+        const external_id = entry.id;
         const channel = await getChannel('instagram', external_id);
 
         if (!channel) {
@@ -179,7 +167,7 @@ async function handleInstagram(payload) {
             await saveInboundMessage({
                 business_id: channel.business_id,
                 platform: 'instagram',
-                contact_name: name || igsid, // fallback to raw IGSID if lookup fails/returns nothing
+                contact_name: name || igsid,
                 phone: null,
                 thread_id: `instagram:${igsid}`,
                 message
@@ -188,7 +176,6 @@ async function handleInstagram(payload) {
     }
 }
 
-// ---- POST entrypoint: route by payload.object ----
 router.post('/', async (req, res) => {
     const payload = req.body;
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
 import heroImage from '../assets/hero-himalaya.jpg';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
 
         setSubmitting(true);
         try {
-            // Backend route not built yet — same status as /auth/forgot-password.
+
             const res = await fetch(`${API_BASE}/auth/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

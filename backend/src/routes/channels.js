@@ -3,19 +3,15 @@ const router = express.Router();
 const prisma = require('../prismaClient');
 const { protect, requireActive } = require('../middleware/auth');
 const {
-    exchangeCodeForToken,
     getLongLivedToken,
     getManagedPages,
     getLinkedInstagramAccount,
     subscribePageWebhook,
 } = require('../services/metaGraph');
 
-// Same pattern as leads.js/users.js — every route here needs a real,
-// currently-active account, not just a valid token.
 router.use(protect, requireActive);
 
-// List channels already connected for this business — used by the
-// Connect Channels page to show "already connected" state on load.
+
 router.get('/', async (req, res) => {
     try {
         const channels = await prisma.business_channels.findMany({
@@ -28,19 +24,13 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Step 1 of Facebook Login for Business. The frontend runs FB.login()
-// itself (client-side, via the JS SDK) and hands us the resulting `code`.
-// We exchange it for a token and return the list of Pages this person
-// manages so the frontend can show a picker (or auto-select if there's
-// only one). Nothing is saved to the database yet — this is a read-only
-// lookup, safe to call as many times as the person retries the popup.
+
 router.post('/facebook/callback', async (req, res) => {
     try {
-        const { code } = req.body;
-        if (!code) return res.status(400).json({ error: 'Missing code' });
+        const { accessToken } = req.body;
+        if (!accessToken) return res.status(400).json({ error: 'Missing accessToken' });
 
-        const shortLivedToken = await exchangeCodeForToken(code);
-        const longLivedToken = await getLongLivedToken(shortLivedToken);
+        const longLivedToken = await getLongLivedToken(accessToken);
         const pages = await getManagedPages(longLivedToken);
 
         const enrichedPages = await Promise.all(
@@ -58,11 +48,7 @@ router.post('/facebook/callback', async (req, res) => {
     }
 });
 
-// Step 2: the frontend sends back the exact page object the person picked
-// — id, name, access_token, and optionally a linked instagram { id,
-// username } — all of which came straight from the callback response
-// above, so nothing needs to be looked up again here except a safety
-// check that this Page/IG account isn't already claimed by someone else.
+
 router.post('/facebook/finish', async (req, res) => {
     try {
         const { page } = req.body;
@@ -121,11 +107,7 @@ router.post('/facebook/finish', async (req, res) => {
     }
 });
 
-// Instagram-only recheck — for when the Page didn't have Instagram linked
-// at first connect (very common; most small businesses never actually did
-// this) and they've since gone and linked it in their Facebook Page
-// settings. Re-uses the already-stored Page access token instead of making
-// them redo the entire Facebook popup login just to check again.
+
 router.post('/instagram/recheck', async (req, res) => {
     try {
         const messengerChannel = await prisma.business_channels.findFirst({
@@ -165,9 +147,6 @@ router.post('/instagram/recheck', async (req, res) => {
     }
 });
 
-// Disconnect — removes the row. Doesn't currently unsubscribe the webhook
-// on Meta's side first; fine for a college project, worth revisiting
-// before anything real depends on this.
 router.delete('/:id', async (req, res) => {
     try {
         const existing = await prisma.business_channels.findFirst({

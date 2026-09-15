@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { tokens } from './Header';
+import { tokens } from '../styles/tokens';
 import heroImage from '../assets/hero-himalaya.jpg';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -17,9 +17,7 @@ export default function ForgotPasswordPage() {
         setSubmitting(true);
 
         try {
-            // Backend route not built yet (see handoff doc's "Not yet built on
-            // the backend" list) — wiring this up now so the page is ready
-            // once POST /auth/forgot-password exists.
+
             const res = await fetch(`${API_BASE}/auth/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

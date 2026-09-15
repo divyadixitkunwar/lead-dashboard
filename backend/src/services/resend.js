@@ -2,9 +2,7 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// On Resend's free/test domain (onboarding@resend.dev) you can only send to
-// the email tied to your own Resend account. Verifying a real domain in
-// Resend's dashboard is the only change needed once you have one.
+
 const FROM = process.env.EMAIL_FROM || 'Ekikrit <onboarding@resend.dev>';
 
 async function sendPasswordResetCodeEmail(to, code) {

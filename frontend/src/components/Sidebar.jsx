@@ -1,214 +1,149 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
-const SIDEBAR_WIDTH = 260;
+const SIDEBAR_WIDTH = 236;
 
-const colors = {
-    bg: '#FFFFFF',
-    pageBg: '#F5F5F7',
-    border: 'rgba(0,0,0,0.08)',
-    activeText: '#FFFFFF',
-    activeBg: '#1D1D1F',
-    inactiveText: '#6E6E73',
-    hoverBg: '#F5F5F7',
-    brand: '#1D1D1F',
-    accent: '#0071E3',
+const Icon = ({ name }) => {
+    const common = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' };
+    const paths = {
+        leads: <><rect x="4" y="4" width="6" height="6" rx="1.4" /><rect x="14" y="4" width="6" height="6" rx="1.4" /><rect x="4" y="14" width="6" height="6" rx="1.4" /><rect x="14" y="14" width="6" height="6" rx="1.4" /></>,
+        team: <><circle cx="9" cy="8" r="3" /><path d="M3.5 20c.4-3.4 2.3-5.2 5.5-5.2s5.1 1.8 5.5 5.2" /><path d="M15.5 5.5a3 3 0 0 1 0 5.8M17 14.8c2.1.8 3.4 2.3 3.7 5.2" /></>,
+        settings: <><circle cx="12" cy="12" r="3" /><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M18 6l-1.4 1.4M7.4 16.6 6 18" /></>,
+        channels: <><path d="M7 8a5 5 0 0 1 9.6-2M17 16a5 5 0 0 1-9.6 2" /><path d="M16 4v4h4M8 20v-4H4" /></>,
+        approvals: <><path d="m5 12 4 4L19 6" /><circle cx="12" cy="12" r="9" /></>,
+        invite: <><path d="M12 5v14M5 12h14" /></>,
+        logout: <><path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10" /><path d="m14 8 4 4-4 4M18 12H9" /></>,
+    };
+    return <svg {...common}>{paths[name]}</svg>;
 };
+
+function initials(name = '') {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'L';
+    return parts.slice(0, 2).map(part => part[0]).join('').toUpperCase();
+}
+
+function pageTitle(pathname) {
+    if (pathname.startsWith('/app/leads/')) return 'Lead';
+    if (pathname === '/app/users') return 'Team';
+    if (pathname === '/app/settings') return 'Settings';
+    return 'Leads';
+}
 
 export default function Sidebar({ children }) {
     const { user, logout } = useAuth();
     const location = useLocation();
+    const [businessName, setBusinessName] = useState('');
 
-    const navItems = [
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    const isSuperadmin = user?.role === 'superadmin';
+
+    useEffect(() => {
+        let alive = true;
+        api.get('/business')
+            .then(res => {
+                const name = res.data?.name || res.data?.business?.name;
+                if (alive && name) setBusinessName(name);
+            })
+            .catch(() => {});
+        return () => { alive = false; };
+    }, []);
+
+    const resolvedBusiness = businessName || user?.business_name || user?.business?.name || 'Lead Dashboard';
+    const workspaceInitials = useMemo(() => initials(resolvedBusiness), [resolvedBusiness]);
+    const title = pageTitle(location.pathname);
+
+    const sections = [
         {
-            path: '/app', label: 'Leads', icon: (
-                <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
-                    <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.8" />
-                    <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.4" />
-                    <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.4" />
-                    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" opacity="0.8" />
-                </svg>
-            )
+            label: 'Workspace',
+            items: [
+                { path: '/app', label: 'Leads', icon: 'leads' },
+                ...(isSuperadmin ? [{ path: '/admin/approvals', label: 'Approvals', icon: 'approvals' }] : []),
+            ],
         },
         {
-            path: '/app/users', label: 'Users', icon: (
-                <svg width="17" height="17" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="5" r="3" fill="currentColor" opacity="0.8" />
-                    <path d="M2 13c0-2.761 2.686-5 6-5s6 2.239 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
-                </svg>
-            ), adminOnly: true
+            label: 'Manage',
+            items: [
+                ...(isAdmin ? [{ path: '/app/users', label: 'Team', icon: 'team' }] : []),
+                { path: '/app/settings', label: 'Settings', icon: 'settings' },
+            ],
         },
     ];
 
-    const initials = user?.name
-        ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-        : '??';
-
     return (
-        <div style={{
-            display: 'flex',
-            minHeight: '100vh',
-            background: colors.pageBg,
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif",
-        }}>
-            {/* Sidebar */}
-            <div style={{
-                width: SIDEBAR_WIDTH,
-                background: colors.bg,
-                borderRight: `1px solid ${colors.border}`,
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                zIndex: 100,
-            }}>
-
-                {/* Brand */}
-                <div style={{
-                    padding: '28px 22px 22px',
-                    borderBottom: `1px solid ${colors.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                }}>
-                    <div style={{
-                        width: '34px',
-                        height: '34px',
-                        background: colors.brand,
-                        borderRadius: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                    }}>
-                        <div style={{ width: '11px', height: '11px', background: '#fff', borderRadius: '50%', opacity: 0.9 }} />
+        <div className="app-shell">
+            <aside className="app-sidebar">
+                <div className="app-sidebar-top">
+                    <div className="app-brand-row">
+                        <div className="app-brand-mark" aria-hidden="true">{workspaceInitials}</div>
+                        <div className="app-brand-copy">
+                            <span className="app-brand-name">{resolvedBusiness}</span>
+                            <span className="app-brand-subtitle">Leads workspace</span>
+                        </div>
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: colors.brand, letterSpacing: '-0.01em' }}>
-                        Lead Dashboard
+
+                    <div className="app-search-quiet" aria-label="Search">
+                        <span className="app-search-icon">⌕</span>
+                        <span>Search</span>
+                        <kbd>⌘K</kbd>
                     </div>
                 </div>
 
-                {/* Nav */}
-                <nav style={{ padding: '14px 12px', flex: 1 }}>
-                    <div style={{
-                        fontSize: '11px', fontWeight: '600', color: '#AEAEB2',
-                        letterSpacing: '0.06em', textTransform: 'uppercase',
-                        padding: '4px 10px 10px',
-                    }}>
-                        Menu
-                    </div>
-                    {navItems
-                        .filter(item => !item.adminOnly || user?.role === 'admin')
-                        .map(item => {
-                            const active = location.pathname === item.path;
-                            return (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '11px',
-                                        padding: '10px 12px',
-                                        borderRadius: '10px',
-                                        marginBottom: '3px',
-                                        background: active ? colors.activeBg : 'transparent',
-                                        color: active ? colors.activeText : colors.inactiveText,
-                                        textDecoration: 'none',
-                                        fontSize: '14px',
-                                        fontWeight: active ? '500' : '400',
-                                        transition: 'background 0.1s, color 0.1s',
-                                        letterSpacing: '-0.01em',
-                                    }}
-                                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = colors.hoverBg; }}
-                                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
-                                >
-                                    <span style={{ color: active ? '#fff' : colors.inactiveText, display: 'flex' }}>
-                                        {item.icon}
-                                    </span>
-                                    {item.label}
-                                </Link>
-                            );
-                        })}
+                <nav className="app-nav" aria-label="Primary navigation">
+                    {sections.map(section => (
+                        <div className="app-nav-section" key={section.label}>
+                            <div className="app-nav-section-label">{section.label}</div>
+                            {section.items.map(item => {
+                                const active = location.pathname === item.path || (item.path === '/app' && location.pathname.startsWith('/app/leads/'));
+                                return (
+                                    <Link className={`app-nav-link${active ? ' is-active' : ''}`} key={item.path} to={item.path}>
+                                        <Icon name={item.icon} />
+                                        <span>{item.label}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
-                {/* User */}
-                <div style={{
-                    padding: '12px 12px 16px',
-                    borderTop: `1px solid ${colors.border}`,
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '10px 12px',
-                        borderRadius: '10px',
-                        marginBottom: '4px',
-                    }}>
-                        <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #1D1D1F, #3A3A3C)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            color: '#fff',
-                            flexShrink: 0,
-                        }}>
-                            {initials}
-                        </div>
-                        <div style={{ overflow: 'hidden' }}>
-                            <div style={{
-                                fontSize: '14px', fontWeight: '500', color: '#1D1D1F',
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            }}>
-                                {user?.name}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#AEAEB2', textTransform: 'capitalize' }}>
-                                {user?.role}
-                            </div>
-                        </div>
-                    </div>
+                <div className="app-sidebar-bottom">
+                    {isAdmin && (
+                        <Link className="app-nav-link app-bottom-link" to="/app/users">
+                            <Icon name="invite" />
+                            <span>Invite teammates</span>
+                        </Link>
+                    )}
 
-                    <button
-                        onClick={logout}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '9px',
-                            padding: '9px 12px',
-                            width: '100%',
-                            background: 'none',
-                            border: 'none',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            color: '#FF3B30',
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                            textAlign: 'left',
-                            transition: 'background 0.1s',
-                            boxSizing: 'border-box',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,59,48,0.06)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                    >
-                        <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
-                            <path d="M5 2H2a1 1 0 00-1 1v8a1 1 0 001 1h3M9 10l3-3-3-3M12 7H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        Sign out
+                    <button className="app-user-card" type="button" onClick={() => window.location.href = '/app/settings'}>
+                        <span className="app-user-avatar">{initials(user?.name)}</span>
+                        <span className="app-user-copy">
+                            <strong>{user?.name || 'Account'}</strong>
+                            <small>{user?.role || 'Member'}</small>
+                        </span>
+                    </button>
+
+                    <button className="app-signout" onClick={logout}>
+                        <Icon name="logout" />
+                        <span>Sign out</span>
                     </button>
                 </div>
-            </div>
+            </aside>
 
-            {/* Main content */}
-            <div style={{ marginLeft: SIDEBAR_WIDTH, flex: 1, minHeight: '100vh' }}>
-                {children}
-            </div>
+            <main className="app-main">
+                <header className="app-topbar">
+                    <div className="app-breadcrumb">
+                        <span>{resolvedBusiness}</span>
+                        <span className="app-breadcrumb-slash">/</span>
+                        <strong>{title}</strong>
+                    </div>
+                    <Link className="app-top-avatar" to="/app/settings" aria-label="Open profile">
+                        {initials(user?.name)}
+                    </Link>
+                </header>
+                <div className="app-main-content">{children}</div>
+            </main>
         </div>
     );
 }

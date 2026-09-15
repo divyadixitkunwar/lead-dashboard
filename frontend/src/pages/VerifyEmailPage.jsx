@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { tokens } from './Header';
-import { StepIndicator } from './SignUpAccountPage';
+import { tokens } from '../styles/tokens';
+import { StepIndicator } from '../components/StepIndicator';
 import { useAuth } from '../context/AuthContext';
 import heroImage from '../assets/hero-himalaya.jpg';
 
-// Adjust if your backend runs elsewhere / you proxy API calls differently.
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export default function VerifyEmailPage() {
@@ -43,16 +42,8 @@ export default function VerifyEmailPage() {
                 setError(data.error || 'Invalid code.');
                 return;
             }
-            // Goes through AuthContext (not raw localStorage) so `user` in
-            // context updates synchronously with this client-side navigate.
-            // Writing localStorage directly here left context's `user` as
-            // null until a full reload, which made ProtectedRoute bounce
-            // straight back to /login on the very next screen.
+
             login(data.token, data.user);
-            // Verifying logs them in for good — no separate "log in again"
-            // step. Always goes to the waiting page now; there's no branch
-            // to `active` here since verify-email always lands on
-            // pending_approval.
             navigate('/application-pending');
         } catch {
             setError('Network error. Try again.');
@@ -112,9 +103,6 @@ export default function VerifyEmailPage() {
             <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 1, background: 'rgba(246,241,231,0.6)' }} />
 
             <div style={{ position: 'relative', zIndex: 2, flexShrink: 0, paddingTop: '40px' }}>
-                {/* "Connect" is no longer a signup-wizard step — connecting a
-                    channel now happens after approval, from the dashboard,
-                    not as part of this sequence. Two steps, not three. */}
                 <StepIndicator steps={['Account', 'Verify']} activeIndex={1} />
             </div>
 
