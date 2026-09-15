@@ -8,6 +8,7 @@ const ingestRouter = require('./routes/ingest');
 const adminRouter = require('./routes/admin');
 const channelsRouter = require('./routes/channels');
 const businessRouter = require('./routes/business');
+const analyticsRouter = require('./routes/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,7 @@ app.use('/ingest', ingestRouter);
 app.use('/admin', adminRouter);
 app.use('/channels', channelsRouter);
 app.use('/business', businessRouter);
+app.use('/analytics', analyticsRouter);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

@@ -3,6 +3,7 @@ const router = express.Router();
 const prisma = require('../prismaClient');
 const { tagIntent } = require('../services/intentTagger');
 const { classifyMessageType } = require('../services/messageClassifier');
+const { classifyWithFallback } = require('../services/aiClassifier');
 
 router.get('/', (req, res) => {
     const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
@@ -39,6 +40,49 @@ async function fetchProfileName(userId, accessToken, fields) {
     }
 }
 
+async function saveEchoMessage({ business_id, platform, contact_name, thread_id, message, platform_message_id, received_at }) {
+    if (!platform_message_id) return;
+
+    const existing = await prisma.messages.findUnique({
+        where: { platform_message_id }
+    });
+
+    if (existing) return;
+
+    let lead = await prisma.leads.findFirst({
+        where: { business_id, platform_thread_id: thread_id }
+    });
+
+    if (!lead) {
+        lead = await prisma.leads.create({
+            data: {
+                business_id,
+                contact_name,
+                phone: null,
+                channel: platform,
+                platform_thread_id: thread_id,
+                possible_duplicate: false,
+                intent: 'unclassified',
+                message_type: 'customer_lead'
+            }
+        });
+    }
+
+    try {
+        await prisma.messages.create({
+            data: {
+                lead_id: lead.id,
+                body: message,
+                direction: 'outbound',
+                platform_message_id,
+                ...(received_at ? { received_at: new Date(received_at) } : {})
+            }
+        });
+    } catch (error) {
+        if (error.code !== 'P2002') throw error;
+    }
+}
+
 async function saveInboundMessage({ business_id, platform, contact_name, phone, thread_id, message }) {
     let lead = await prisma.leads.findFirst({
         where: { business_id, platform_thread_id: thread_id }
@@ -51,8 +95,9 @@ async function saveInboundMessage({ business_id, platform, contact_name, phone, 
             if (existing) possibleDuplicate = true;
         }
 
-        const message_type = classifyMessageType(message);
-        const intent = message_type === 'customer_lead' ? tagIntent(message) : 'unclassified';
+        const classification = await classifyWithFallback(message);
+        const message_type = classification.message_type;
+        const intent = classification.intent;
 
         lead = await prisma.leads.create({
             data: {
@@ -65,6 +110,15 @@ async function saveInboundMessage({ business_id, platform, contact_name, phone, 
                 intent,
                 message_type
             }
+        });
+    } else if (
+        contact_name &&
+        contact_name !== lead.contact_name &&
+        !/^\d+$/.test(contact_name)
+    ) {
+        await prisma.leads.update({
+            where: { id: lead.id },
+            data: { contact_name }
         });
     }
 
@@ -127,7 +181,37 @@ async function handleMessenger(payload) {
         }
 
         for (const event of entry.messaging || []) {
-            if (!event.message || event.message.is_echo) continue;
+            console.log('MESSENGER EVENT FIELDS:', JSON.stringify({
+                sender: event.sender || null,
+                recipient: event.recipient || null,
+                timestamp: event.timestamp || null,
+                message_keys: event.message ? Object.keys(event.message) : [],
+                message_mid: event.message?.mid || null,
+                message_echo: event.message?.is_echo || false
+            }));
+
+            if (!event.message) continue;
+
+            if (event.message.is_echo) {
+                const customerId = event.recipient?.id;
+                const message = event.message.text || '[Non-text message]';
+
+                if (customerId) {
+                    const name = await fetchProfileName(customerId, channel.access_token, 'name');
+
+                    await saveEchoMessage({
+                        business_id: channel.business_id,
+                        platform: 'messenger',
+                        contact_name: name || customerId,
+                        thread_id: `messenger:${customerId}`,
+                        message,
+                        platform_message_id: event.message.mid,
+                        received_at: event.timestamp ? new Date(event.timestamp).toISOString() : null
+                    });
+                }
+
+                continue;
+            }
 
             const psid = event.sender?.id;
             const message = event.message.text || '[Non-text message]';
@@ -157,7 +241,28 @@ async function handleInstagram(payload) {
         }
 
         for (const event of entry.messaging || []) {
-            if (!event.message || event.message.is_echo) continue;
+            if (!event.message) continue;
+
+            if (event.message.is_echo) {
+                const customerId = event.recipient?.id;
+                const message = event.message.text || '[Non-text message]';
+
+                if (customerId) {
+                    const name = await fetchProfileName(customerId, channel.access_token, 'name,username');
+
+                    await saveEchoMessage({
+                        business_id: channel.business_id,
+                        platform: 'instagram',
+                        contact_name: name || customerId,
+                        thread_id: `instagram:${customerId}`,
+                        message,
+                        platform_message_id: event.message.mid,
+                        received_at: event.timestamp ? new Date(event.timestamp).toISOString() : null
+                    });
+                }
+
+                continue;
+            }
 
             const igsid = event.sender?.id;
             const message = event.message.text || '[Non-text message]';

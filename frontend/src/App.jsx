@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignUpAccountPage from './pages/SignUpAccountPage';
 import DashboardPage from './pages/DashboardPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import UsersPage from './pages/UsersPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -51,6 +52,11 @@ export default function App() {
       <Route path="/app" element={
         <ProtectedRoute requireChannel={true}>
           <DashboardPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/app/analytics" element={
+        <ProtectedRoute requireChannel={true}>
+          <AnalyticsPage />
         </ProtectedRoute>
       } />
       <Route path="/app/leads/:id" element={

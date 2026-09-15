@@ -48,9 +48,22 @@ export default function LeadDetailPage() {
     const [noteContent, setNoteContent] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [noteFocus, setNoteFocus] = useState(false);
+    const [replyText, setReplyText] = useState('');
+    const [sending, setSending] = useState(false);
+    const [replyError, setReplyError] = useState(null);
+    const [suggesting, setSuggesting] = useState(false);
     const messagesEndRef = useRef(null);
 
-    useEffect(() => { fetchLead(); }, [id]);
+    useEffect(() => {
+        fetchLead();
+
+        const interval = setInterval(() => {
+            fetchLead();
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [id]);
+
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [lead?.messages]);
 
     const fetchLead = async () => {
@@ -77,6 +90,36 @@ export default function LeadDetailPage() {
             fetchLead();
         } catch (err) { console.error(err); }
         finally { setSubmitting(false); }
+    };
+
+    const sendReply = async () => {
+        if (!replyText.trim()) return;
+        setSending(true);
+        setReplyError(null);
+        try {
+            await api.post(`/leads/${id}/reply`, { content: replyText.trim() });
+            setReplyText('');
+            await fetchLead();
+        } catch (err) {
+            setReplyError(err.response?.data?.error || 'Failed to send message');
+        } finally {
+            setSending(false);
+        }
+    };
+
+
+    const suggestReplyDraft = async () => {
+        setSuggesting(true);
+        setReplyError(null);
+
+        try {
+            const res = await api.post(`/leads/${id}/suggest-reply`);
+            setReplyText(res.data.draft);
+        } catch (err) {
+            setReplyError('Could not generate a suggestion right now');
+        } finally {
+            setSuggesting(false);
+        }
     };
 
     const getPlatformLink = (channel, phone) => {
@@ -106,6 +149,11 @@ export default function LeadDetailPage() {
 
     const st = STATUS[status] || STATUS.new;
     const int = INTENT[lead.intent] || INTENT.unclassified;
+
+    const lastInbound = lead.messages?.filter(m => m.direction === 'inbound').at(-1);
+    const windowOpen = lastInbound
+        ? Date.now() - new Date(lastInbound.received_at).getTime() < 24 * 60 * 60 * 1000
+        : false;
 
     return (
         <Sidebar>
@@ -170,9 +218,9 @@ export default function LeadDetailPage() {
                                         {lead.channel}
                                     </span>
                                     <span style={{ fontSize: '13px', color: '#6E6E73', background: '#F5F5F7', borderRadius: '7px', padding: '4px 10px', textTransform: 'capitalize' }}>
-                                        {lead.message_type.replace(/_/g, ' ')}
+                                        {(lead.message_type ?? '').replace(/_/g, ' ')}
                                     </span>
-                                    <Badge color={int.color} bg={int.bg} label={lead.intent.replace(/_/g, ' ')} />
+                                    <Badge color={int.color} bg={int.bg} label={(lead.intent ?? '').replace(/_/g, ' ')} />
                                 </div>
                             </div>
                         </div>
@@ -261,6 +309,70 @@ export default function LeadDetailPage() {
                             ))}
                             <div ref={messagesEndRef} />
                         </div>
+
+                        {['messenger', 'instagram'].includes(lead.channel) && (
+                            <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                                {!windowOpen ? (
+                                    <div style={{ fontSize: '13px', color: '#AEAEB2', textAlign: 'center', padding: '8px' }}>
+                                        Outside the 24-hour reply window — the customer needs to message again
+                                        before you can reply here.
+                                    </div>
+                                ) : (
+                                    <>
+                                        {replyError && (
+                                            <div style={{ fontSize: '13px', color: '#FF3B30', marginBottom: '8px' }}>
+                                                {replyError}
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={suggestReplyDraft}
+                                            disabled={suggesting}
+                                            style={{
+                                                marginBottom: '8px',
+                                                padding: '7px 14px',
+                                                background: 'transparent',
+                                                border: '1px solid rgba(0,0,0,0.15)',
+                                                borderRadius: '10px',
+                                                fontSize: '13px',
+                                                fontWeight: 500,
+                                                color: '#6E6E73',
+                                                cursor: suggesting ? 'default' : 'pointer',
+                                                fontFamily: font,
+                                                opacity: suggesting ? 0.6 : 1,
+                                            }}
+                                        >
+                                            {suggesting ? 'Thinking...' : 'Suggest reply'}
+                                        </button>
+
+                                        <textarea
+                                            value={replyText}
+                                            onChange={e => setReplyText(e.target.value)}
+                                            placeholder="Type a reply..."
+                                            rows={2}
+                                            style={{
+                                                width: '100%', boxSizing: 'border-box', resize: 'none',
+                                                border: '1px solid rgba(0,0,0,0.1)', borderRadius: '12px',
+                                                padding: '10px 14px', fontSize: '14px', fontFamily: font, outline: 'none',
+                                            }}
+                                        />
+                                        <button
+                                            onClick={sendReply}
+                                            disabled={sending || !replyText.trim()}
+                                            style={{
+                                                marginTop: '8px', padding: '9px 18px',
+                                                background: replyText.trim() ? '#0071E3' : '#E5E5EA',
+                                                color: replyText.trim() ? '#fff' : '#AEAEB2',
+                                                border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 500,
+                                                cursor: replyText.trim() ? 'pointer' : 'default', fontFamily: font,
+                                            }}
+                                        >
+                                            {sending ? 'Sending...' : 'Send'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div style={{

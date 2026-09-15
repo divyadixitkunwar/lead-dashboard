@@ -262,7 +262,7 @@ export default function ConnectChannelPage() {
                         setError(err.response?.data?.error || 'Could not read your Pages from Facebook.');
                     });
             },
-            { scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement,business_management' }
+            { scope: 'pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement,business_management,instagram_manage_messages' }
         );
     }, [finishConnect]);
 
