@@ -82,12 +82,15 @@ describeIfAuthed('LIVE API contract — /analytics', () => {
     });
 });
 
-describeIfConfigured('LIVE API contract — webhook endpoints reject unsigned/invalid payloads', () => {
-    it.each(['/webhooks/whatsapp', '/webhooks/messenger', '/webhooks/instagram'])(
-        'POST %s without a valid signature is rejected, not silently accepted',
-        async (path) => {
-            const res = await client.post(path, { fake: 'payload' });
-            expect([400, 401, 403]).toContain(res.status);
-        }
-    );
+describeIfConfigured('LIVE API contract — webhook ingest endpoint rejects unsigned/invalid payloads', () => {
+    // The app uses a single unified webhook endpoint (POST /ingest) that
+    // branches internally by payload.object (whatsapp_business_account,
+    // page, instagram) rather than separate per-platform routes.
+    it('POST /ingest without a valid X-Hub-Signature-256 is rejected, not silently accepted', async () => {
+        const res = await client.post('/ingest', {
+            object: 'whatsapp_business_account',
+            entry: [],
+        });
+        expect([400, 401, 403]).toContain(res.status);
+    });
 });
