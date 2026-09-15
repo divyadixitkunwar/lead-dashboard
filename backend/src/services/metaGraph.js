@@ -106,9 +106,29 @@ async function subscribePageWebhook(pageId, pageAccessToken) {
     return data;
 }
 
+async function sendTextMessage(pageAccessToken, recipientId, text) {
+    const url = `${GRAPH_BASE}/me/messages?access_token=${pageAccessToken}`;
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: { text },
+        }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+        const err = new Error(data.error?.message || 'Failed to send message');
+        err.metaError = data.error;
+        throw err;
+    }
+    return data; // { recipient_id, message_id }
+}
+
 module.exports = {
     getLongLivedToken,
     getManagedPages,
     getLinkedInstagramAccount,
     subscribePageWebhook,
+    sendTextMessage,
 };

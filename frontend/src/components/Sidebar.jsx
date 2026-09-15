@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -35,7 +35,9 @@ function pageTitle(pathname) {
 export default function Sidebar({ children }) {
     const { user, logout } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const [businessName, setBusinessName] = useState('');
+    const [sidebarSearch, setSidebarSearch] = useState('');
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     const isSuperadmin = user?.role === 'superadmin';
@@ -60,6 +62,7 @@ export default function Sidebar({ children }) {
             label: 'Workspace',
             items: [
                 { path: '/app', label: 'Leads', icon: 'leads' },
+                { path: '/app/analytics', label: 'Analytics', icon: 'analytics' },
                 ...(isSuperadmin ? [{ path: '/admin/approvals', label: 'Approvals', icon: 'approvals' }] : []),
             ],
         },
@@ -84,9 +87,29 @@ export default function Sidebar({ children }) {
                         </div>
                     </div>
 
-                    <div className="app-search-quiet" aria-label="Search">
+                    <div className="app-search-quiet">
                         <span className="app-search-icon">⌕</span>
-                        <span>Search</span>
+                        <input
+                            type="text"
+                            value={sidebarSearch}
+                            onChange={e => setSidebarSearch(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    navigate(`/app?q=${encodeURIComponent(sidebarSearch.trim())}`);
+                                }
+                            }}
+                            placeholder="Search"
+                            aria-label="Search leads"
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                border: 'none',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                font: 'inherit',
+                            }}
+                        />
                         <kbd>⌘K</kbd>
                     </div>
                 </div>

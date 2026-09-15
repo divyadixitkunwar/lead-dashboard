@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 
@@ -72,7 +72,12 @@ export default function DashboardPage() {
     const [filters, setFilters] = useState({ status: '', channel: '', intent: '', message_type: '' });
     const [search, setSearch] = useState('');
     const [focusSearch, setFocusSearch] = useState(false);
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        setSearch(searchParams.get('q') || '');
+    }, [searchParams]);
 
     useEffect(() => { fetchLeads(); }, [filters]);
 
