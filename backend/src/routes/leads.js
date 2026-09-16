@@ -27,9 +27,15 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
     try {
+        const id = parseInt(req.params.id);
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid lead id' });
+
         const lead = await prisma.leads.findFirst({
-            where: { id: parseInt(req.params.id), business_id: req.user.business_id },
-            include: { messages: true, notes: { include: { users: true } } }
+            where: { id, business_id: req.user.business_id },
+            include: {
+                messages: true,
+                notes: { include: { users: { select: { id: true, name: true, email: true } } } }
+            }
         });
         if (!lead) return res.status(404).json({ error: 'Lead not found' });
         res.json(lead);
@@ -98,7 +104,9 @@ router.get('/:id/notes', async (req, res) => {
         if (!lead) return res.status(404).json({ error: 'Lead not found' });
 
         const notes = await prisma.notes.findMany({
-            where: { lead_id: lead.id }, include: { users: true }, orderBy: { created_at: 'desc' }
+            where: { lead_id: lead.id },
+            include: { users: { select: { id: true, name: true, email: true } } },
+            orderBy: { created_at: 'desc' }
         });
         res.json(notes);
     } catch (error) {
