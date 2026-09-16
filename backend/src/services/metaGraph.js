@@ -98,7 +98,7 @@ async function getLinkedInstagramAccount(pageId, pageAccessToken) {
 
 async function subscribePageWebhook(pageId, pageAccessToken) {
     const url = `${GRAPH_BASE}/${pageId}/subscribed_apps` +
-        `?subscribed_fields=messages,messaging_postbacks` +
+        `?subscribed_fields=messages,messaging_postbacks,message_echoes` +
         `&access_token=${pageAccessToken}`;
     const resp = await fetch(url, { method: 'POST' });
     const data = await resp.json();
